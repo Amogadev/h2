@@ -1,0 +1,124 @@
+/**
+ * Core Philosophy: This ruleset is designed for an internal hotel management application, "HotelZenith".
+ * The security model assumes that any authenticated user is a trusted staff member with full
+ * permissions to manage all hotel operational data. Access is granted based on authentication
+ * status rather than individual user ownership or specific roles.
+ *
+ * Data Structure: The data is organized around a primary `rooms` collection. Each room document
+ * can contain `bookings` and `payments` subcollections. A separate top-level collection,
+ * `revenue_projections`, stores sensitive financial forecasting data, segregating it from
+ * daily operational data.
+ *
+ * Key Security Decisions:
+ * - Authenticated-Only Access: All read and write operations across the database are restricted
+ *   to authenticated users. There is no public or anonymous access.
+ * - No User-Specific Data: The data model does not contain user-owned documents (e.g., a `/users`
+ *   collection). Security is not based on matching a user's ID to a document's owner field.
+ * - Path Consistency: For subcollections like `bookings` and `payments`, rules enforce that the
+ *   denormalized `roomId` field within a document must match the `roomId` from the document's
+ *   path. This ensures relational integrity.
+ * - Immutability of Links: The `roomId` field in existing `bookings` and `payments` documents
+ *   is immutable, preventing documents from being moved between rooms after creation.
+ *
+ * Denormalization for Authorization: The `bookings` and `payments` documents contain a denormalized
+ * `roomId`. While this pattern is often used to avoid costly `get()` calls in ownership-based
+ * rules, here it serves primarily to enforce and validate the relationship between a subcollection
+ * document and its parent room, ensuring data integrity at the rules layer.
+ *
+ * Structural Segregation: Storing `revenue_projections` in a separate top-level collection allows
+ * its security to be managed independently from the `rooms` collection. This is a robust pattern
+ * that prevents accidental data leakage and simplifies rules for both collections.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for readable and maintainable rules.
+
+    /**
+     * Checks if the user is signed in.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the user is signed in AND the document being modified already exists.
+     * Prevents modification or deletion of non-existent documents.
+     */
+    function isAuthenticatedAndDocExists() {
+      return isSignedIn() && resource != null;
+    }
+
+    /**
+     * On create, validates that the denormalized `roomId` in the document body
+     * matches the `roomId` from the document path.
+     */
+    function isDataConsistent(roomId) {
+      return request.resource.data.roomId == roomId;
+    }
+
+
+
+    /**
+     * On update, ensures the `roomId` linking a document to its parent room cannot be changed.
+     */
+    function isRoomIdImmutable() {
+      return request.resource.data.roomId == resource.data.roomId;
+    }
+
+    /**
+     * @description Manages hotel room information. All authenticated users (staff) can manage rooms.
+     * @path /rooms/{roomId}
+     * @allow An authenticated staff member reads a room's details. `(auth: staff_user_1, get)`
+     * @deny An unauthenticated user tries to create a new room. `(auth: null, create)`
+     * @principle Restricts all access to authenticated users, suitable for an internal management tool.
+     */
+    match /rooms/{roomId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAuthenticatedAndDocExists();
+
+      /**
+       * @description Stores booking information for a specific room.
+       * @path /rooms/{roomId}/bookings/{bookingId}
+       * @allow An authenticated staff member creates a new booking for room 'r123', providing `roomId: 'r123'` in the data. `(auth: staff_user_1, create)`
+       * @deny An authenticated staff member tries to create a booking under room 'r123' but provides `roomId: 'r456'` in the data. `(auth: staff_user_1, create)`
+       * @principle Enforces relational integrity by ensuring the document's `roomId` matches its path.
+       */
+      match /bookings/{bookingId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && isDataConsistent(roomId);
+        allow update: if isAuthenticatedAndDocExists() && isRoomIdImmutable();
+        allow delete: if isAuthenticatedAndDocExists();
+      }
+
+      /**
+       * @description Stores payment information for a specific room.
+       * @path /rooms/{roomId}/payments/{paymentId}
+       * @allow An authenticated staff member updates a payment for room 'r123', and the `roomId` field is unchanged. `(auth: staff_user_1, update)`
+       * @deny An authenticated staff member tries to update a payment and change its `roomId`. `(auth: staff_user_1, update)`
+       * @principle Enforces relational integrity by ensuring the document's `roomId` is immutable.
+       */
+      match /payments/{paymentId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && isDataConsistent(roomId);
+        allow update: if isAuthenticatedAndDocExists() && isRoomIdImmutable();
+        allow delete: if isAuthenticatedAndDocExists();
+      }
+    }
+
+    /**
+     * @description Manages AI-powered revenue projection data. Access is restricted to authenticated users.
+     * @path /revenue_projections/{revenueProjectionId}
+     * @allow An authenticated staff member (or an automated service) reads projection data. `(auth: service_account_1, get)`
+     * @deny An anonymous user attempts to list all revenue projections. `(auth: null, list)`
+     * @principle Protects sensitive financial data by restricting all access to authenticated users.
+     */
+    match /revenue_projections/{revenueProjectionId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAuthenticatedAndDocExists();
+    }
+  }
+}

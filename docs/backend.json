@@ -1,0 +1,234 @@
+{
+  "entities": {
+    "Room": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Room",
+      "type": "object",
+      "description": "Represents a room in the hotel.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the room."
+        },
+        "roomNumber": {
+          "type": "number",
+          "description": "The room number."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the room (Available / Occupied)."
+        },
+        "guestName": {
+          "type": "string",
+          "description": "The name of the guest currently occupying the room. Can be null if the room is available."
+        },
+        "checkIn": {
+          "type": "string",
+          "description": "The check-in date of the guest. Can be null if the room is available.",
+          "format": "date-time"
+        },
+        "checkOut": {
+          "type": "string",
+          "description": "The check-out date of the guest. Can be null if the room is available.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "roomNumber",
+        "status"
+      ]
+    },
+    "Booking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Booking",
+      "type": "object",
+      "description": "Represents a booking for a room on a specific date.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the booking."
+        },
+        "roomId": {
+          "type": "string",
+          "description": "Reference to Room. (Relationship: Room 1:N Booking)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the booking.",
+          "format": "date-time"
+        },
+        "guestName": {
+          "type": "string",
+          "description": "The name of the guest who made the booking."
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "The status of the payment for the booking."
+        }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "date",
+        "guestName",
+        "paymentStatus"
+      ]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment made for a booking.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the payment."
+        },
+        "roomId": {
+          "type": "string",
+          "description": "Reference to Room. (Relationship: Room 1:N Payment)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount paid."
+        },
+        "mode": {
+          "type": "string",
+          "description": "The mode of payment (UPI, Cash, GPay, PhonePe, Net Banking)."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the payment.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "roomId",
+        "amount",
+        "mode",
+        "date"
+      ]
+    },
+    "RevenueProjectionData": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RevenueProjectionData",
+      "type": "object",
+      "description": "Historical booking data and current trends for AI-Powered Revenue Projection",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the projection."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date for which revenue is projected.",
+          "format": "date-time"
+        },
+        "projectedRevenue": {
+          "type": "number",
+          "description": "The projected revenue for the given date."
+        },
+        "bookingsCount": {
+          "type": "number",
+          "description": "The number of bookings used to project revenue."
+        },
+        "averageStayDuration": {
+          "type": "number",
+          "description": "The average stay duration used to project revenue."
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "projectedRevenue",
+        "bookingsCount",
+        "averageStayDuration"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/rooms/{roomId}",
+        "definition": {
+          "entityName": "Room",
+          "schema": {
+            "$ref": "#/backend/entities/Room"
+          },
+          "description": "Stores room information. 'roomId' is the unique identifier for each room.",
+          "params": [
+            {
+              "name": "roomId",
+              "description": "Unique identifier for the room."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/rooms/{roomId}/bookings/{bookingId}",
+        "definition": {
+          "entityName": "Booking",
+          "schema": {
+            "$ref": "#/backend/entities/Booking"
+          },
+          "description": "Stores booking information for each room. Includes denormalized 'roomId' to easily track all bookings for the room, for authorization independence.",
+          "params": [
+            {
+              "name": "roomId",
+              "description": "Reference to Room. (Relationship: Room 1:N Booking)"
+            },
+            {
+              "name": "bookingId",
+              "description": "Unique identifier for the booking."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/rooms/{roomId}/payments/{paymentId}",
+        "definition": {
+          "entityName": "Payment",
+          "schema": {
+            "$ref": "#/backend/entities/Payment"
+          },
+          "description": "Stores payment information for each room. Includes denormalized 'roomId' to easily track all payments for the room, for authorization independence.",
+          "params": [
+            {
+              "name": "roomId",
+              "description": "Reference to Room. (Relationship: Room 1:N Payment)"
+            },
+            {
+              "name": "paymentId",
+              "description": "Unique identifier for the payment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/revenue_projections/{revenueProjectionId}",
+        "definition": {
+          "entityName": "RevenueProjectionData",
+          "schema": {
+            "$ref": "#/backend/entities/RevenueProjectionData"
+          },
+          "description": "Stores revenue projection data for AI-powered revenue forecasting.",
+          "params": [
+            {
+              "name": "revenueProjectionId",
+              "description": "Unique identifier for the projection."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the HotelZenith application, prioritizing authorization independence, clarity, and scalability. The design incorporates denormalization to avoid hierarchical authorization dependencies, uses structural segregation to maintain a homogeneous security posture within collections, and applies consistent access modeling patterns. Path-based ownership is employed where applicable, and a membership map is not needed, since there is no collaborative data.\n\nRooms and their related data (bookings and payments) are structured to enable efficient querying and management of hotel operations. The RevenueProjectionData is stored in a separate collection to support AI-powered revenue projection, allowing for scalability and independent management of this feature.\n\nAuthorization Independence (CRITICAL): Denormalization is achieved by including relevant room details within each booking and payment document, eliminating the need for security rules to fetch room data. This allows atomic operations and simplifies security rules.\n\nQAPs (Rules are not Filters): The structure supports secure list operations. For instance, listing bookings for a specific room and date is efficiently done without filtering on the client-side, as all necessary data is directly available within the booking document. Segregation of RevenueProjectionData into its own collection ensures that access to this sensitive data can be controlled independently, preventing unauthorized access through list operations."
+  }
+}

@@ -9,21 +9,60 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Booking } from '@/lib/types';
 import { Calendar, User, Users } from 'lucide-react';
 import { format } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 export function ViewBookingDialog({ booking, children }: { booking: Booking; children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
+  const firestore = useFirestore();
+  const { toast } = useToast();
 
   const formatDate = (date: string | Timestamp | undefined) => {
     if (!date) return 'N/A';
     const d = date instanceof Timestamp ? date.toDate() : new Date(date);
     return format(d, 'PPP');
   };
+
+  const handleCheckOut = async () => {
+    if (!firestore || !booking) return;
+
+    try {
+      const roomRef = doc(firestore, 'rooms', booking.roomId);
+      const bookingRef = doc(firestore, 'rooms', booking.roomId, 'bookings', booking.id);
+
+      // Update room status to available
+      await updateDoc(roomRef, {
+        status: 'Available',
+        guestName: null,
+        checkIn: null,
+        checkOut: null,
+      });
+
+      // Delete the booking document
+      await deleteDoc(bookingRef);
+
+      toast({
+        title: 'Check-out Successful',
+        description: `${booking.guestName} has checked out from Room ${booking.roomNumber}.`,
+      });
+      setOpen(false);
+    } catch (error) {
+      console.error('Error during check-out:', error);
+      toast({
+        title: 'Check-out Failed',
+        description: 'An error occurred while processing the check-out.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -65,7 +104,10 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
             </div>
           </div>
         </div>
-        <Button onClick={() => setOpen(false)} variant="outline" className="w-full">Close</Button>
+        <DialogFooter className="sm:justify-between gap-2">
+            <Button onClick={handleCheckOut}>Check Out</Button>
+            <Button onClick={() => setOpen(false)} variant="outline">Close</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

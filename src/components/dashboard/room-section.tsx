@@ -21,8 +21,8 @@ const RoomCard = ({ room, booking }: { room: Room; booking?: Booking }) => {
 
   return (
     <Card className={cn("flex flex-col", {
-        'bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800': isAvailable,
-        'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800': !isAvailable,
+        'bg-blue-100 border-blue-300 dark:bg-blue-900 dark:border-blue-700': isAvailable,
+        'bg-green-100 border-green-300 dark:bg-green-900 dark:border-green-700': !isAvailable,
     })}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>

@@ -52,20 +52,18 @@ export function DashboardPage() {
         return formatISO(paymentDate, { representation: 'date' }) === dateStr;
     });
 
-    // 1. Filter out duplicates and sort the rooms
-    const uniqueRooms = (rooms || []).reduce((acc, current) => {
-        if (!acc.find(item => item.roomNumber === current.roomNumber)) {
-            acc.push(current);
-        }
-        return acc;
-    }, [] as Room[]).sort((a, b) => a.roomNumber.localeCompare(b.roomNumber));
+    const uniqueRooms = (rooms || [])
+      .filter((room, index, self) => 
+        index === self.findIndex((r) => r.roomNumber === room.roomNumber)
+      )
+      .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber));
 
 
     const updatedRooms = uniqueRooms.map(room => {
         const currentBooking = (bookings || []).find(b => {
             const checkInDate = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
             const checkOutDate = b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string);
-            return b.roomNumber === room.roomNumber && selectedDate >= startOfDay(checkInDate) && selectedDate < startOfDay(checkOutDate);
+            return b.roomNumber.toString() === room.roomNumber.toString() && selectedDate >= startOfDay(checkInDate) && selectedDate < startOfDay(checkOutDate);
         });
 
         if (currentBooking) {
@@ -75,6 +73,7 @@ export function DashboardPage() {
                 guestName: currentBooking.guestName,
                 checkIn: currentBooking.checkIn,
                 checkOut: currentBooking.checkOut,
+                currentBooking: currentBooking,
             };
         }
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
@@ -131,7 +130,7 @@ export function DashboardPage() {
         
         <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
-                <RoomSection rooms={filteredData.updatedRooms} bookings={bookings || []} />
+                <RoomSection rooms={filteredData.updatedRooms} />
             </div>
             <div className="lg:col-span-1">
                 <PaymentsSection

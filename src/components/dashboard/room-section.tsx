@@ -11,13 +11,13 @@ import { BookingDialog } from './booking-dialog';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Timestamp } from 'firebase/firestore';
+import { ViewBookingDialog } from './view-booking-dialog';
 
 interface RoomSectionProps {
-  rooms: Room[];
-  bookings: Booking[];
+  rooms: (Room & { currentBooking?: Booking })[];
 }
 
-const RoomCard = ({ room }: { room: Room; }) => {
+const RoomCard = ({ room, currentBooking }: { room: Room; currentBooking?: Booking }) => {
   const isAvailable = room.status === 'Available';
 
   const formatDate = (date: string | Timestamp | undefined) => {
@@ -64,8 +64,12 @@ const RoomCard = ({ room }: { room: Room; }) => {
             <BookingDialog room={room}>
               <Button className="w-full">Book Now</Button>
             </BookingDialog>
+          ) : currentBooking ? (
+             <ViewBookingDialog booking={currentBooking}>
+                <Button variant="outline" className="w-full">View Booking</Button>
+             </ViewBookingDialog>
           ) : (
-             <Button variant="outline" className="w-full">View Booking</Button>
+            <Button variant="outline" className="w-full" disabled>View Booking</Button>
           )}
         </div>
       </CardContent>
@@ -74,7 +78,7 @@ const RoomCard = ({ room }: { room: Room; }) => {
 };
 
 
-const RoomSection = ({ rooms, bookings }: RoomSectionProps) => {
+const RoomSection = ({ rooms }: RoomSectionProps) => {
   return (
     <Card className="h-full">
       <CardHeader>
@@ -84,7 +88,7 @@ const RoomSection = ({ rooms, bookings }: RoomSectionProps) => {
       <CardContent>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
           {rooms.map(room => (
-            <RoomCard key={room.id} room={room} />
+            <RoomCard key={room.id} room={room} currentBooking={room.currentBooking} />
           ))}
         </div>
       </CardContent>

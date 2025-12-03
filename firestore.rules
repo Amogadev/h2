@@ -87,7 +87,7 @@ service cloud.firestore {
        * @principle Enforces relational integrity by ensuring the document's `roomId` matches its path.
        */
       match /bookings/{bookingId} {
-        allow get, list: if isSignedIn();
+        allow get: if isSignedIn();
         allow create: if isSignedIn() && isDataConsistent(roomId);
         allow update: if isAuthenticatedAndDocExists() && isRoomIdImmutable();
         allow delete: if isAuthenticatedAndDocExists();
@@ -101,11 +101,19 @@ service cloud.firestore {
        * @principle Enforces relational integrity by ensuring the document's `roomId` is immutable.
        */
       match /payments/{paymentId} {
-        allow get, list: if isSignedIn();
+        allow get: if isSignedIn();
         allow create: if isSignedIn() && isDataConsistent(roomId);
         allow update: if isAuthenticatedAndDocExists() && isRoomIdImmutable();
         allow delete: if isAuthenticatedAndDocExists();
       }
+    }
+    
+    match /{path=**}/bookings/{bookingId} {
+        allow list: if isSignedIn();
+    }
+    
+    match /{path=**}/payments/{paymentId} {
+        allow list: if isSignedIn();
     }
 
     /**

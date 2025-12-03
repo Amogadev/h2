@@ -4,10 +4,13 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { Payment, Booking } from '@/lib/types';
-import { DollarSign, Wallet, CreditCard, Landmark } from 'lucide-react';
+import { DollarSign, Wallet, CreditCard, Landmark, Trash2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, deleteDoc, doc } from 'firebase/firestore';
+import { Button } from '../ui/button';
+import { useFirestore } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 interface PaymentsSectionProps {
   payments: Payment[];
@@ -31,6 +34,31 @@ function areDatesSame(date1: string | Timestamp, date2: string | Timestamp) {
 
 
 const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const handleDeletePayment = async (paymentId: string, roomId: string) => {
+    if (!firestore) return;
+    try {
+      if(!roomId || !paymentId) {
+        throw new Error("Invalid payment or room id");
+      }
+      const paymentRef = doc(firestore, `rooms/${roomId}/payments/${paymentId}`);
+      await deleteDoc(paymentRef);
+      toast({
+        title: "Payment Deleted",
+        description: "The payment has been successfully deleted.",
+      });
+    } catch (error) {
+      console.error("Error deleting payment: ", error);
+      toast({
+        title: "Error",
+        description: "Could not delete the payment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const paymentStats = useMemo(() => {
     const totalIncome = payments.reduce((acc, p) => acc + p.amount, 0);
     
@@ -99,11 +127,21 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
                   <AccordionContent>
                     <ul className="pl-6 pr-2 space-y-2 text-sm">
                       {data.transactions.map(tx => (
-                        <li key={tx.id} className="flex justify-between">
-                          <span>{tx.guestName}</span>
-                          <span className='text-muted-foreground'>
-                            ${tx.amount.toLocaleString()} on {formatDate(tx.date)}
-                          </span>
+                        <li key={tx.id} className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span>{tx.guestName}</span>
+                            <span className='text-xs text-muted-foreground'>
+                                ${tx.amount.toLocaleString()} on {formatDate(tx.date)}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="w-8 h-8 rounded-full"
+                            onClick={() => handleDeletePayment(tx.id, tx.roomId)}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
                         </li>
                       ))}
                     </ul>

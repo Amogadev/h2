@@ -85,12 +85,6 @@ export function LoginForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : "Sign In"}
           </Button>
-          <p className="text-sm text-center text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="/signup" className="font-semibold underline text-primary">
-              Sign up
-            </Link>
-          </p>
         </CardFooter>
       </form>
     </Card>

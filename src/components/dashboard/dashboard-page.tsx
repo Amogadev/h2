@@ -95,27 +95,29 @@ export function DashboardPage({
     <div className="flex flex-col min-h-screen bg-background">
       <DashboardHeader />
       <main className="flex-1 p-4 space-y-8 md:p-8">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+            <div className="w-full sm:w-auto">
+                <CalendarSection
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                bookings={[]} // We pass an empty array as we are using it just as a date picker here.
+                isDatePickerOnly={true}
+                />
+            </div>
+        </div>
         <SummaryCards rooms={filteredData.updatedRooms} />
         
         <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-1">
-            <CalendarSection
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              bookings={filteredData.bookingsForDay}
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <RoomSection rooms={filteredData.updatedRooms} bookings={initialBookings} />
-          </div>
-        </div>
-
-        <div className="grid gap-8">
-            <PaymentsSection
-                payments={filteredData.paymentsForDay}
-                bookings={filteredData.bookingsForDay}
-            />
+            <div className="lg:col-span-2">
+                <RoomSection rooms={filteredData.updatedRooms} bookings={initialBookings} />
+            </div>
+            <div className="lg:col-span-1">
+                <PaymentsSection
+                    payments={filteredData.paymentsForDay}
+                    bookings={filteredData.bookingsForDay}
+                />
+            </div>
         </div>
 
       </main>

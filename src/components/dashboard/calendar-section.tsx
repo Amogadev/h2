@@ -6,14 +6,45 @@ import { Calendar } from '@/components/ui/calendar';
 import type { Booking } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Button } from '../ui/button';
+import { cn } from '@/lib/utils';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface CalendarSectionProps {
   selectedDate: Date;
   setSelectedDate: (date: Date) => void;
   bookings: Booking[];
+  isDatePickerOnly?: boolean;
 }
 
-const CalendarSection = ({ selectedDate, setSelectedDate, bookings }: CalendarSectionProps) => {
+const CalendarSection = ({ selectedDate, setSelectedDate, bookings, isDatePickerOnly = false }: CalendarSectionProps) => {
+  
+  if (isDatePickerOnly) {
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button
+                variant={'outline'}
+                className={cn('w-full min-w-[280px] justify-start text-left font-normal', !selectedDate && 'text-muted-foreground')}
+                >
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                {selectedDate ? format(selectedDate, 'PPP') : <span>Pick a date</span>}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+                <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    initialFocus
+                />
+            </PopoverContent>
+        </Popover>
+    )
+  }
+  
   return (
     <Card className="h-full">
       <CardHeader>

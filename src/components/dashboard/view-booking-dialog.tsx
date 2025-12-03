@@ -16,7 +16,7 @@ import { Booking } from '@/lib/types';
 import { Calendar, User, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { Timestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 export function ViewBookingDialog({ booking, children }: { booking: Booking; children: React.ReactNode }) {
@@ -30,37 +30,57 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
     return format(d, 'PPP');
   };
 
-  const handleCheckOut = async () => {
+  const handleCheckOut = () => {
     if (!firestore || !booking) return;
 
-    try {
-      const roomRef = doc(firestore, 'rooms', booking.roomId);
-      const bookingRef = doc(firestore, 'rooms', booking.roomId, 'bookings', booking.id);
+    const roomRef = doc(firestore, 'rooms', booking.roomId);
+    const bookingRef = doc(firestore, 'rooms', booking.roomId, 'bookings', booking.id);
+    const roomUpdateData = {
+      status: 'Available',
+      guestName: null,
+      checkIn: null,
+      checkOut: null,
+    };
 
-      // Update room status to available
-      await updateDoc(roomRef, {
-        status: 'Available',
-        guestName: null,
-        checkIn: null,
-        checkOut: null,
+    // Update room status to available
+    updateDoc(roomRef, roomUpdateData)
+      .then(() => {
+        // After successfully updating the room, delete the booking document
+        return deleteDoc(bookingRef).catch((error) => {
+           errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+              path: bookingRef.path,
+              operation: 'delete',
+            })
+          );
+          // Re-throw to prevent success toast if booking deletion fails
+          throw error;
+        });
+      })
+      .then(() => {
+        toast({
+          title: 'Check-out Successful',
+          description: `${booking.guestName} has checked out from Room ${booking.roomNumber}.`,
+        });
+        setOpen(false);
+      })
+      .catch((error) => {
+        // This will catch the re-thrown error from booking deletion or the initial room update error.
+        if (error.name !== 'FirebaseError') {
+           errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+              path: roomRef.path,
+              operation: 'update',
+              requestResourceData: roomUpdateData,
+            })
+          );
+        }
+        // The error is already emitted, so we don't need a toast here.
+        // The FirebaseErrorListener will handle displaying it.
+        console.error('An error occurred during check-out:', error);
       });
-
-      // Delete the booking document
-      await deleteDoc(bookingRef);
-
-      toast({
-        title: 'Check-out Successful',
-        description: `${booking.guestName} has checked out from Room ${booking.roomNumber}.`,
-      });
-      setOpen(false);
-    } catch (error) {
-      console.error('Error during check-out:', error);
-      toast({
-        title: 'Check-out Failed',
-        description: 'An error occurred while processing the check-out.',
-        variant: 'destructive',
-      });
-    }
   };
 
 

@@ -30,9 +30,18 @@ export async function seedInitialData() {
       status: 'Available',
     }));
 
-    const roomRefs = await Promise.all(
-      mockRooms.map(roomData => addDoc(roomsCollection, roomData))
-    );
+    const roomCreationPromises = mockRooms.map(async (roomData) => {
+      // Check if room already exists
+      const roomQuery = query(roomsCollection, where("roomNumber", "==", roomData.roomNumber));
+      const roomSnapshot = await getDocs(roomQuery);
+      if (roomSnapshot.empty) {
+        return addDoc(roomsCollection, roomData);
+      }
+      return Promise.resolve(null);
+    });
+
+    await Promise.all(roomCreationPromises);
+
 
     const mockBookings: Omit<Booking, 'id' | 'roomId'>[] = [
       { roomNumber: '101', date: Timestamp.fromDate(today), guestName: 'John Doe', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(today), checkOut: Timestamp.fromDate(addDays(today, 2)), numPersons: 2 },
@@ -123,7 +132,7 @@ export async function createBooking(
     ...newBookingData,
     roomId: roomDoc.id,
     date: Timestamp.fromDate(newBookingData.checkIn),
-    checkIn: Timestamp.fromDate(newBookingData.checkIn),
+    checkIn: Timestamp.fromDate(newBooking.checkIn),
     checkOut: Timestamp.fromDate(newBookingData.checkOut),
     paymentStatus: 'Paid' as const,
   };

@@ -118,7 +118,7 @@ export function DashboardPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             
-            <p className="text-muted-foreground">Your home away from home. 🏡</p>
+            <p className="text-xl text-muted-foreground">Your home away from home. 🏡</p>
           </div>
           <div className="w-full sm:w-auto">
               <CalendarSection

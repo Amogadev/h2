@@ -117,7 +117,7 @@ export function DashboardPage() {
       <main className="flex-1 p-4 space-y-8 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+            
             <p className="text-muted-foreground">Your home away from home. 🏡</p>
           </div>
           <div className="w-full sm:w-auto">

@@ -51,16 +51,16 @@ export async function createBooking(
 
   const batch = writeBatch(db);
 
+  const bookingRef = doc(collection(db, `rooms/${roomDoc.id}/bookings`));
   const bookingWithRoomId = {
     ...newBookingData,
+    id: bookingRef.id,
     roomId: roomDoc.id,
     date: Timestamp.fromDate(newBookingData.checkIn),
     checkIn: Timestamp.fromDate(newBookingData.checkIn),
     checkOut: Timestamp.fromDate(newBookingData.checkOut),
     paymentStatus: 'Paid' as const,
   };
-
-  const bookingRef = doc(collection(db, `rooms/${roomDoc.id}/bookings`));
   batch.set(bookingRef, bookingWithRoomId);
 
   const paymentWithIds = {

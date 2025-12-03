@@ -124,7 +124,7 @@ export function DashboardPage() {
               <CalendarSection
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
-              bookings={[]} 
+              bookings={filteredData.bookingsForDay}
               isDatePickerOnly={true}
               />
           </div>

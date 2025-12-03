@@ -7,7 +7,7 @@ import type { Payment, Booking } from '@/lib/types';
 import { DollarSign, Wallet, CreditCard, Landmark, Trash2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format } from 'date-fns';
-import { Timestamp, deleteDoc, doc } from 'firebase/firestore';
+import { Timestamp, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { Button } from '../ui/button';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -37,27 +37,48 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const handleDeletePayment = async (paymentId: string, roomId: string) => {
-    if (!firestore) return;
-    try {
-      if(!roomId || !paymentId) {
-        throw new Error("Invalid payment or room id");
-      }
-      const paymentRef = doc(firestore, `rooms/${roomId}/payments/${paymentId}`);
-      await deleteDoc(paymentRef);
-      toast({
-        title: "Payment Deleted",
-        description: "The payment has been successfully deleted.",
-      });
-    } catch (error) {
-      console.error("Error deleting payment: ", error);
-      toast({
-        title: "Error",
-        description: "Could not delete the payment. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+    const handleDeletePayment = async (paymentId: string, roomId: string, bookingId?: string) => {
+        if (!firestore) return;
+        try {
+            if (!roomId || !paymentId) {
+                throw new Error("Invalid payment or room id");
+            }
+
+            const batch = writeBatch(firestore);
+
+            // Delete the payment
+            const paymentRef = doc(firestore, `rooms/${roomId}/payments/${paymentId}`);
+            batch.delete(paymentRef);
+
+            // If there's an associated booking, delete it and update the room
+            if (bookingId) {
+                const bookingRef = doc(firestore, `rooms/${roomId}/bookings/${bookingId}`);
+                batch.delete(bookingRef);
+                
+                const roomRef = doc(firestore, `rooms/${roomId}`);
+                batch.update(roomRef, {
+                    status: 'Available',
+                    guestName: null,
+                    checkIn: null,
+                    checkOut: null,
+                });
+            }
+            
+            await batch.commit();
+
+            toast({
+                title: "Payment Deleted",
+                description: "The payment and associated booking have been deleted.",
+            });
+        } catch (error) {
+            console.error("Error deleting payment: ", error);
+            toast({
+                title: "Error",
+                description: "Could not delete the payment. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
 
   const paymentStats = useMemo(() => {
     const totalIncome = payments.reduce((acc, p) => acc + p.amount, 0);
@@ -71,9 +92,10 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
       acc[payment.mode].transactions.push({
         ...payment,
         guestName: booking?.guestName || 'N/A',
+        bookingId: booking?.id
       });
       return acc;
-    }, {} as Record<string, { total: number; transactions: (Payment & { guestName: string })[] }>);
+    }, {} as Record<string, { total: number; transactions: (Payment & { guestName: string, bookingId?: string })[] }>);
 
     return { totalIncome, paymentBreakdown, totalBookings: bookings.length };
   }, [payments, bookings]);
@@ -138,7 +160,7 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
                             variant="ghost"
                             size="icon"
                             className="w-8 h-8 rounded-full"
-                            onClick={() => handleDeletePayment(tx.id, tx.roomId)}
+                            onClick={() => handleDeletePayment(tx.id, tx.roomId, tx.bookingId)}
                           >
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>

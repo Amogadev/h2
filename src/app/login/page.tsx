@@ -18,7 +18,8 @@ export default function LoginPage() {
         />
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
       </div>
-      <div className="relative z-10 w-full max-w-md">
+      {/* Centered login form */}
+      <div className="relative z-10 w-full max-w-sm">
         <LoginForm />
       </div>
     </div>

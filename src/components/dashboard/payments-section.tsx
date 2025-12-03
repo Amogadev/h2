@@ -3,13 +3,22 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { Payment, Booking } from '@/lib/types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DollarSign, Wallet } from 'lucide-react';
 
 interface PaymentsSectionProps {
   payments: Payment[];
   bookings: Booking[];
 }
+
+const paymentModeIcons: Record<string, React.ReactNode> = {
+    'GPay': <Wallet className="w-5 h-5 text-muted-foreground" />,
+    'UPI': <Wallet className="w-5 h-5 text-muted-foreground" />,
+    'Cash': <DollarSign className="w-5 h-5 text-muted-foreground" />,
+    'PhonePe': <Wallet className="w-5 h-5 text-muted-foreground" />,
+    'Net Banking': <Wallet className="w-5 h-5 text-muted-foreground" />,
+    'Card': <Wallet className="w-5 h-5 text-muted-foreground" />,
+}
+
 
 const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
   const paymentStats = useMemo(() => {
@@ -50,24 +59,23 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
 
         <div>
           <h4 className="mb-4 text-sm font-medium text-center">Payment Breakdown</h4>
-          <div className="w-full h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={paymentStats.chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                <Tooltip
-                  cursor={{ fill: 'hsl(var(--accent) / 0.2)' }}
-                  contentStyle={{
-                    background: 'hsl(var(--background))',
-                    borderColor: 'hsl(var(--border))',
-                    borderRadius: 'var(--radius)',
-                  }}
-                />
-                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {paymentStats.chartData.length > 0 ? (
+            <div className="space-y-3">
+              {paymentStats.chartData.map(({ name, amount }) => (
+                <div key={name} className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    {paymentModeIcons[name] || <Wallet className="w-5 h-5 text-muted-foreground" />}
+                    <span className="font-medium">{name}</span>
+                  </div>
+                  <span className="font-semibold">${amount.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-24 text-sm text-center text-muted-foreground">
+                <p>No payment data for this date.</p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

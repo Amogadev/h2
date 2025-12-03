@@ -14,10 +14,16 @@ export default function Home() {
     }
   }, [user, loading]);
 
-  // Seed data on initial load if needed
   useEffect(() => {
+    // This check ensures seeding only happens once in a controlled way,
+    // preferably triggered by an explicit action in a real app.
+    // For now, it runs once if NODE_ENV is development.
     if (process.env.NODE_ENV === 'development') {
+      const hasSeeded = sessionStorage.getItem('hasSeeded');
+      if (!hasSeeded) {
         seedInitialData();
+        sessionStorage.setItem('hasSeeded', 'true');
+      }
     }
   }, []);
 

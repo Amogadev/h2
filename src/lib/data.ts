@@ -24,10 +24,9 @@ export async function seedInitialData() {
   const roomsQuery = query(roomsCollection);
   const roomsSnapshot = await getDocs(roomsQuery);
   
-  // Only seed if there are fewer than 7 rooms to avoid duplicates
-  if (roomsSnapshot.docs.length < 7) {
-    console.log('Rooms collection is incomplete, seeding initial data...');
-    const existingRoomNumbers = new Set(roomsSnapshot.docs.map(doc => doc.data().roomNumber));
+  // Only seed if the collection is completely empty to avoid any duplicates.
+  if (roomsSnapshot.empty) {
+    console.log('Rooms collection is empty, seeding initial data...');
     
     const mockRooms: Omit<Room, 'id'>[] = Array.from({ length: 7 }, (_, i) => ({
       roomNumber: `${101 + i}`,
@@ -35,9 +34,7 @@ export async function seedInitialData() {
     }));
 
     for (const roomData of mockRooms) {
-      if (!existingRoomNumbers.has(roomData.roomNumber)) {
-        await addDoc(roomsCollection, roomData);
-      }
+      await addDoc(roomsCollection, roomData);
     }
 
     // Refresh snapshot after adding rooms
@@ -54,36 +51,32 @@ export async function seedInitialData() {
 
         if (roomDoc) {
             const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
-            // Check if a booking for this user already exists to prevent duplicates
-            const bookingQuery = query(bookingsCollection, where("guestName", "==", bookingData.guestName));
-            const bookingSnapshot = await getDocs(bookingQuery);
+            const bookingRef = await addDoc(bookingsCollection, { 
+                ...bookingData, 
+                roomId: roomDoc.id,
+                date: bookingData.checkIn,
+            });
 
-            if (bookingSnapshot.empty) {
-                const bookingRef = await addDoc(bookingsCollection, { 
-                    ...bookingData, 
+            if(bookingData.paymentStatus === 'Paid') {
+                const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
+                await addDoc(paymentsCollection, {
+                    bookingId: bookingRef.id,
                     roomId: roomDoc.id,
+                    roomNumber: bookingData.roomNumber,
+                    amount: bookingData.payment.amount,
+                    mode: bookingData.payment.mode,
                     date: bookingData.checkIn,
                 });
-
-                if(bookingData.paymentStatus === 'Paid') {
-                    const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
-                    await addDoc(paymentsCollection, {
-                        bookingId: bookingRef.id,
-                        roomId: roomDoc.id,
-                        roomNumber: bookingData.roomNumber,
-                        amount: bookingData.payment.amount,
-                        mode: bookingData.payment.mode,
-                        date: bookingData.checkIn,
-                    });
-                }
-                
-                await setDoc(roomDoc.ref, { 
-                    status: 'Occupied',
-                }, { merge: true });
             }
+            
+            await setDoc(roomDoc.ref, { 
+                status: 'Occupied',
+            }, { merge: true });
         }
     }
      console.log('Finished seeding data.');
+  } else {
+    console.log('Rooms collection is not empty, skipping data seeding.');
   }
 }
 

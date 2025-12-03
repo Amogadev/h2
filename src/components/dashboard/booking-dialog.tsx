@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -24,6 +25,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/hooks/use-toast';
 import { createBooking } from '@/lib/data';
+import { useFirestore } from '@/firebase';
 
 const bookingSchema = z.object({
   customerName: z.string().min(2, { message: 'Customer name is required' }),
@@ -39,6 +41,7 @@ type BookingFormValues = z.infer<typeof bookingSchema>;
 export function BookingDialog({ room, children }: { room: Room; children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
+  const firestore = useFirestore();
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
@@ -47,6 +50,15 @@ export function BookingDialog({ room, children }: { room: Room; children: React.
   });
 
   const onSubmit = async (data: BookingFormValues) => {
+    if (!firestore) {
+      toast({
+        title: 'Booking Failed',
+        description: 'Firestore not available. Please try again later.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       const bookingData = {
         roomNumber: room.roomNumber,
@@ -61,7 +73,7 @@ export function BookingDialog({ room, children }: { room: Room; children: React.
         mode: data.paymentMode,
       };
   
-      await createBooking(bookingData, paymentData);
+      await createBooking(firestore, bookingData, paymentData);
   
       toast({
         title: 'Booking Successful!',
@@ -70,11 +82,15 @@ export function BookingDialog({ room, children }: { room: Room; children: React.
       setOpen(false);
       form.reset();
     } catch (error) {
-       toast({
-        title: 'Booking Failed',
-        description: 'There was an error creating the booking.',
-        variant: 'destructive',
-      });
+      // Errors are now handled by the global error emitter in createBooking
+      // No need for a toast here unless for non-permission errors.
+      if (!(error instanceof Error && error.name === 'FirebaseError')) {
+         toast({
+          title: 'Booking Failed',
+          description: (error as Error).message || 'There was an error creating the booking.',
+          variant: 'destructive',
+        });
+      }
     }
   };
 

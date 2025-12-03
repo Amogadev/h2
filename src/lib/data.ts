@@ -1,3 +1,4 @@
+
 import {
   collection,
   addDoc,
@@ -9,48 +10,47 @@ import {
   Timestamp,
   getDoc,
   onSnapshot,
-  collectionGroup
+  collectionGroup,
+  writeBatch,
+  Firestore,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
 import type { Room, Booking, Payment } from './types';
-import { subDays, addDays, formatISO, startOfDay } from 'date-fns';
-import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-
-
-const roomsCollection = collection(db, 'rooms');
+import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 export async function createBooking(
+  db: Firestore,
   newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId' | 'checkIn' | 'checkOut'> & { checkIn: Date, checkOut: Date },
   payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
 ) {
+  const roomsCollection = collection(db, 'rooms');
   const roomQuery = query(roomsCollection, where("roomNumber", "==", newBookingData.roomNumber));
+  
   const roomSnapshot = await getDocs(roomQuery);
 
+  let roomDoc;
+
   if (roomSnapshot.empty) {
-    // If room doesn't exist, create it.
     const newRoomRef = doc(collection(db, 'rooms'));
     const newRoom = {
       id: newRoomRef.id,
       roomNumber: newBookingData.roomNumber,
       status: 'Available',
     };
-    await setDoc(newRoomRef, newRoom);
-    
-    // Now call createBooking again with the newly created room.
-    // To avoid infinite recursion in case of an issue, we can just proceed with the new reference
-    const roomDoc = await getDoc(newRoomRef);
-    return createBookingFromRoomDoc(roomDoc, newBookingData, payment);
+    await setDoc(newRoomRef, newRoom).catch((error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: newRoomRef.path,
+            operation: 'create',
+            requestResourceData: newRoom
+        }));
+        throw error;
+    });
+    roomDoc = await getDoc(newRoomRef);
   } else {
-    const roomDoc = roomSnapshot.docs[0];
-    return createBookingFromRoomDoc(roomDoc, newBookingData, payment);
+    roomDoc = roomSnapshot.docs[0];
   }
-}
 
-async function createBookingFromRoomDoc(
-  roomDoc: any,
-  newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId' | 'checkIn' | 'checkOut'> & { checkIn: Date, checkOut: Date },
-  payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
-) {
+  const batch = writeBatch(db);
+
   const bookingWithRoomId = {
     ...newBookingData,
     roomId: roomDoc.id,
@@ -60,11 +60,8 @@ async function createBookingFromRoomDoc(
     paymentStatus: 'Paid' as const,
   };
 
-  const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
-  const bookingRef = doc(collection(bookingsCollection)); // Create a new doc ref with an auto-generated ID
-
-  setDocumentNonBlocking(bookingRef, bookingWithRoomId, { merge: true });
-
+  const bookingRef = doc(collection(db, `rooms/${roomDoc.id}/bookings`));
+  batch.set(bookingRef, bookingWithRoomId);
 
   const paymentWithIds = {
     ...payment,
@@ -72,21 +69,30 @@ async function createBookingFromRoomDoc(
     bookingId: bookingRef.id,
     date: Timestamp.fromDate(newBookingData.checkIn),
   };
-  const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
+  const paymentRef = doc(collection(db, `rooms/${roomDoc.id}/payments`));
+  batch.set(paymentRef, paymentWithIds);
   
-  const paymentRef = doc(collection(paymentsCollection));
-  setDocumentNonBlocking(paymentRef, paymentWithIds, {merge: true});
-
-
-  updateDocumentNonBlocking(roomDoc.ref, {
+  const roomUpdateData = {
     status: 'Occupied',
     guestName: newBookingData.guestName,
     checkIn: Timestamp.fromDate(newBookingData.checkIn),
     checkOut: Timestamp.fromDate(newBookingData.checkOut),
-  });
+  };
+  batch.update(roomDoc.ref, roomUpdateData);
+
+  try {
+    await batch.commit();
+  } catch (error) {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: roomDoc.ref.path,
+        operation: 'write', // Batch can be complex, 'write' is a safe guess
+        requestResourceData: { booking: bookingWithRoomId, payment: paymentWithIds, room: roomUpdateData }
+    }));
+    throw error;
+  }
 
   return {
     booking: { ...bookingWithRoomId, id: bookingRef.id },
-    payment: { ...paymentWithIds, id: 'temp-payment-id' } // Firestore generates ID, temp one is fine
+    payment: { ...paymentWithIds, id: paymentRef.id }
   };
 }

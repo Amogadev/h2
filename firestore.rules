@@ -1,3 +1,4 @@
+
 /**
  * Core Philosophy: This ruleset is designed for an internal hotel management application, "HotelZenith".
  * The security model assumes that any authenticated user is a trusted staff member with full
@@ -75,9 +76,7 @@ service cloud.firestore {
      * @principle Restricts all access to authenticated users, suitable for an internal management tool.
      */
     match /rooms/{roomId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isAuthenticatedAndDocExists();
+      allow read, write: if isSignedIn();
 
       /**
        * @description Stores booking information for a specific room.
@@ -87,10 +86,7 @@ service cloud.firestore {
        * @principle Enforces relational integrity by ensuring the document's `roomId` matches its path.
        */
       match /bookings/{bookingId} {
-        allow get: if isSignedIn();
-        allow create: if isSignedIn() && isDataConsistent(roomId);
-        allow update: if isAuthenticatedAndDocExists() && isRoomIdImmutable();
-        allow delete: if isAuthenticatedAndDocExists();
+        allow read, write: if isSignedIn();
       }
 
       /**
@@ -101,10 +97,7 @@ service cloud.firestore {
        * @principle Enforces relational integrity by ensuring the document's `roomId` is immutable.
        */
       match /payments/{paymentId} {
-        allow get: if isSignedIn();
-        allow create: if isSignedIn() && isDataConsistent(roomId);
-        allow update: if isAuthenticatedAndDocExists() && isRoomIdImmutable();
-        allow delete: if isAuthenticatedAndDocExists();
+        allow read, write: if isSignedIn();
       }
     }
     

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -8,6 +9,7 @@ import { DoorClosed, DoorOpen, User } from 'lucide-react';
 import type { Room, Booking } from '@/lib/types';
 import { BookingDialog } from './booking-dialog';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface RoomSectionProps {
   rooms: Room[];
@@ -18,7 +20,10 @@ const RoomCard = ({ room, booking }: { room: Room; booking?: Booking }) => {
   const isAvailable = room.status === 'Available';
 
   return (
-    <Card className="flex flex-col">
+    <Card className={cn("flex flex-col", {
+        'bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800': isAvailable,
+        'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800': !isAvailable,
+    })}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
           <CardTitle className="text-lg">Room {room.roomNumber}</CardTitle>

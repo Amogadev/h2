@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -10,7 +11,7 @@ import DashboardHeader from '@/components/dashboard/header';
 import SummaryCards from '@/components/dashboard/summary-cards';
 import RoomSection from '@/components/dashboard/room-section';
 import PaymentsSection from '@/components/dashboard/payments-section';
-import { collection, query, onSnapshot, getFirestore, collectionGroup } from 'firebase/firestore';
+import { collection, query, onSnapshot, getFirestore, collectionGroup, Timestamp } from 'firebase/firestore';
 import CalendarSection from './calendar-section';
 
 export function DashboardPage() {
@@ -42,22 +43,19 @@ export function DashboardPage() {
     const dateStr = formatISO(selectedDate, { representation: 'date' });
     
     const bookingsForDay = (bookings || []).filter(b => {
-        // b.date can be a string or a Timestamp, handle both
-        const bookingDate = b.date instanceof Timestamp ? b.date.toDate() : new Date(b.date);
+        const bookingDate = b.date instanceof Timestamp ? b.date.toDate() : new Date(b.date as string);
         return formatISO(bookingDate, { representation: 'date' }) === dateStr;
     });
 
     const paymentsForDay = (payments || []).filter(p => {
-        // p.date can be a string or a Timestamp, handle both
-        const paymentDate = p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date);
+        const paymentDate = p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date as string);
         return formatISO(paymentDate, { representation: 'date' }) === dateStr;
     });
 
     const updatedRooms = (rooms || []).map(room => {
         const currentBooking = (bookings || []).find(b => {
-            // checkIn/checkOut can be a string or a Timestamp
-            const checkInDate = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn);
-            const checkOutDate = b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut);
+            const checkInDate = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
+            const checkOutDate = b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string);
             return b.roomNumber === room.roomNumber && selectedDate >= startOfDay(checkInDate) && selectedDate < startOfDay(checkOutDate);
         });
 

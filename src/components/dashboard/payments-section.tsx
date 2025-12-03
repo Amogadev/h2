@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo } from 'react';
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import type { Payment, Booking } from '@/lib/types';
 import { DollarSign, Wallet, CreditCard, Landmark } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 
 interface PaymentsSectionProps {
@@ -23,8 +24,8 @@ const paymentModeIcons: Record<string, React.ReactNode> = {
 }
 
 function areDatesSame(date1: string | Timestamp, date2: string | Timestamp) {
-    const d1 = date1 instanceof Timestamp ? date1.toDate() : new Date(date1);
-    const d2 = date2 instanceof Timestamp ? date2.toDate() : new Date(date2);
+    const d1 = date1 instanceof Timestamp ? date1.toDate() : new Date(date1 as string);
+    const d2 = date2 instanceof Timestamp ? date2.toDate() : new Date(date2 as string);
     return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0];
 }
 
@@ -53,7 +54,7 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
     if (date instanceof Timestamp) {
       return format(date.toDate(), 'MMM d');
     }
-    return format(parseISO(date), 'MMM d');
+    return format(new Date(date as string), 'MMM d');
   }
 
   return (

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { DoorClosed, DoorOpen, User } from 'lucide-react';
 import type { Room, Booking } from '@/lib/types';
 import { BookingDialog } from './booking-dialog';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Timestamp } from 'firebase/firestore';
 
@@ -25,8 +25,7 @@ const RoomCard = ({ room }: { room: Room; }) => {
     if (date instanceof Timestamp) {
       return format(date.toDate(), 'MMM d');
     }
-    // It's a string
-    return format(parseISO(date), 'MMM d');
+    return format(new Date(date as string), 'MMM d');
   }
 
   return (

@@ -21,64 +21,69 @@ const roomsCollection = collection(db, 'rooms');
 
 // Function to add initial mock data to Firestore
 export async function seedInitialData() {
-  const roomsSnapshot = await getDocs(roomsCollection);
-  if (roomsSnapshot.empty) {
-    console.log('No rooms found, seeding initial data...');
-    const today = new Date();
+  const roomsQuery = query(roomsCollection);
+  const roomsSnapshot = await getDocs(roomsQuery);
+  
+  // Only seed if there are fewer than 7 rooms to avoid duplicates
+  if (roomsSnapshot.docs.length < 7) {
+    console.log('Rooms collection is incomplete, seeding initial data...');
+    const existingRoomNumbers = new Set(roomsSnapshot.docs.map(doc => doc.data().roomNumber));
+    
     const mockRooms: Omit<Room, 'id'>[] = Array.from({ length: 7 }, (_, i) => ({
       roomNumber: `${101 + i}`,
       status: 'Available',
     }));
 
     for (const roomData of mockRooms) {
-      // This check was missing, leading to duplicates if seeding ran multiple times.
-      const roomQuery = query(roomsCollection, where("roomNumber", "==", roomData.roomNumber));
-      const roomDocs = await getDocs(roomQuery);
-      if (roomDocs.empty) {
+      if (!existingRoomNumbers.has(roomData.roomNumber)) {
         await addDoc(roomsCollection, roomData);
       }
     }
 
+    // Refresh snapshot after adding rooms
+    const updatedRoomsSnapshot = await getDocs(roomsCollection);
 
-    const mockBookings: Omit<Booking, 'id' | 'roomId'>[] = [
-      { roomNumber: '101', date: Timestamp.fromDate(today), guestName: 'John Doe', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(today), checkOut: Timestamp.fromDate(addDays(today, 2)), numPersons: 2 },
-      { roomNumber: '103', date: Timestamp.fromDate(today), guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(today), checkOut: Timestamp.fromDate(addDays(today, 3)), numPersons: 1 },
-      { roomNumber: '105', date: Timestamp.fromDate(subDays(today, 1)), guestName: 'Peter Jones', paymentStatus: 'Pending', checkIn: Timestamp.fromDate(subDays(today, 1)), checkOut: Timestamp.fromDate(today), numPersons: 3 },
+    const mockBookings: (Omit<Booking, 'id' | 'roomId' | 'date'> & { payment: Omit<Payment, 'id'|'bookingId'|'roomId'|'date'|'roomNumber'>})[] = [
+      { roomNumber: '101', guestName: 'John Doe', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(addDays(new Date(), -1)), checkOut: Timestamp.fromDate(addDays(new Date(), 1)), numPersons: 2, payment: { amount: 250, mode: 'GPay' } },
+      { roomNumber: '103', guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 2)), numPersons: 1, payment: { amount: 300, mode: 'Cash' }  },
+      { roomNumber: '105', guestName: 'Peter Jones', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 3)), numPersons: 3, payment: { amount: 450, mode: 'PhonePe' } },
     ];
     
     for (const bookingData of mockBookings) {
-        const roomQuery = query(roomsCollection, where("roomNumber", "==", bookingData.roomNumber));
-        const roomSnapshot = await getDocs(roomQuery);
-        if (!roomSnapshot.empty) {
-            const roomDoc = roomSnapshot.docs[0];
-            const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
-            const bookingRef = await addDoc(bookingsCollection, { ...bookingData, roomId: roomDoc.id });
+        const roomDoc = updatedRoomsSnapshot.docs.find(doc => doc.data().roomNumber === bookingData.roomNumber);
 
-            if(bookingData.paymentStatus === 'Paid') {
-                const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
-                await addDoc(paymentsCollection, {
-                    bookingId: bookingRef.id,
+        if (roomDoc) {
+            const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
+            // Check if a booking for this user already exists to prevent duplicates
+            const bookingQuery = query(bookingsCollection, where("guestName", "==", bookingData.guestName));
+            const bookingSnapshot = await getDocs(bookingQuery);
+
+            if (bookingSnapshot.empty) {
+                const bookingRef = await addDoc(bookingsCollection, { 
+                    ...bookingData, 
                     roomId: roomDoc.id,
-                    roomNumber: bookingData.roomNumber,
-                    amount: Math.floor(Math.random() * 500) + 100,
-                    mode: 'GPay',
-                    date: bookingData.date,
+                    date: bookingData.checkIn,
                 });
+
+                if(bookingData.paymentStatus === 'Paid') {
+                    const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
+                    await addDoc(paymentsCollection, {
+                        bookingId: bookingRef.id,
+                        roomId: roomDoc.id,
+                        roomNumber: bookingData.roomNumber,
+                        amount: bookingData.payment.amount,
+                        mode: bookingData.payment.mode,
+                        date: bookingData.checkIn,
+                    });
+                }
+                
+                await setDoc(roomDoc.ref, { 
+                    status: 'Occupied',
+                }, { merge: true });
             }
-            
-            await setDoc(roomDoc.ref, { 
-                status: 'Occupied',
-                guestName: bookingData.guestName,
-                checkIn: bookingData.checkIn,
-                checkOut: bookingData.checkOut,
-            }, { merge: true });
         }
     }
      console.log('Finished seeding data.');
-  } else {
-    // To prevent re-seeding and creating duplicates, we just log.
-    // In a real app, you might want more sophisticated data migration logic.
-    console.log('Rooms collection already contains data, skipping seed.');
   }
 }
 

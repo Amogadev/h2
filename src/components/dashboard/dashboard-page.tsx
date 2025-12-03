@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Room, Booking, Payment } from '@/lib/types';
 import { formatISO, startOfDay } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
@@ -8,40 +8,84 @@ import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
 import DashboardHeader from '@/components/dashboard/header';
 import SummaryCards from '@/components/dashboard/summary-cards';
-import CalendarSection from '@/components/dashboard/calendar-section';
 import RoomSection from '@/components/dashboard/room-section';
 import PaymentsSection from '@/components/dashboard/payments-section';
+import { collection, query, onSnapshot, getFirestore } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import CalendarSection from './calendar-section';
 
-interface DashboardPageProps {
-  initialRooms: Room[];
-  initialBookings: Booking[];
-  initialPayments: Payment[];
-}
-
-export function DashboardPage({
-  initialRooms,
-  initialBookings,
-  initialPayments,
-}: DashboardPageProps) {
+export function DashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+  
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  // In a real app with client-side auth, you might redirect.
-  // Since we are simulating auth, we'll just show a loading state.
-  // React.useEffect(() => {
-  //   if (!loading && !user) {
-  //     router.replace('/login');
-  //   }
-  // }, [user, loading, router]);
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    setDataLoading(true);
+    const roomsQuery = query(collection(db, 'rooms'));
+    
+    const unsubscribeRooms = onSnapshot(roomsQuery, snapshot => {
+      const fetchedRooms: Room[] = [];
+      const bookingPromises: Promise<Booking[]>[] = [];
+      const paymentPromises: Promise<Payment[]>[] = [];
+
+      snapshot.forEach(doc => {
+        fetchedRooms.push({ id: doc.id, ...doc.data() } as Room);
+        
+        const bookingsCol = collection(db, `rooms/${doc.id}/bookings`);
+        bookingPromises.push(new Promise(resolve => {
+            onSnapshot(bookingsCol, bookSnap => {
+                resolve(bookSnap.docs.map(d => ({id: d.id, ...d.data()} as Booking)))
+            })
+        }));
+        
+        const paymentsCol = collection(db, `rooms/${doc.id}/payments`);
+        paymentPromises.push(new Promise(resolve => {
+            onSnapshot(paymentsCol, paySnap => {
+                resolve(paySnap.docs.map(d => ({id: d.id, ...d.data()} as Payment)))
+            })
+        }));
+      });
+      
+      setRooms(fetchedRooms);
+
+      Promise.all(bookingPromises).then(bookingArrays => {
+        setBookings(bookingArrays.flat());
+      });
+      Promise.all(paymentPromises).then(paymentArrays => {
+        setPayments(paymentArrays.flat());
+      });
+      setDataLoading(false);
+    });
+
+    return () => unsubscribeRooms();
+  }, []);
 
   const filteredData = useMemo(() => {
     const dateStr = formatISO(selectedDate, { representation: 'date' });
-    const bookingsForDay = initialBookings.filter(b => formatISO(new Date(b.date), { representation: 'date' }) === dateStr);
-    const paymentsForDay = initialPayments.filter(p => formatISO(new Date(p.date), { representation: 'date' }) === dateStr);
+    
+    const bookingsForDay = bookings.filter(b => {
+        const bookingDate = new Date(b.date);
+        return formatISO(bookingDate, { representation: 'date' }) === dateStr;
+    });
 
-    const updatedRooms = initialRooms.map(room => {
-        const currentBooking = initialBookings.find(b => {
+    const paymentsForDay = payments.filter(p => {
+        const paymentDate = new Date(p.date);
+        return formatISO(paymentDate, { representation: 'date' }) === dateStr;
+    });
+
+    const updatedRooms = rooms.map(room => {
+        const currentBooking = bookings.find(b => {
             const checkInDate = startOfDay(new Date(b.checkIn));
             const checkOutDate = startOfDay(new Date(b.checkOut));
             return b.roomNumber === room.roomNumber && selectedDate >= checkInDate && selectedDate < checkOutDate;
@@ -56,14 +100,14 @@ export function DashboardPage({
                 checkOut: currentBooking.checkOut,
             };
         }
-        return { ...room, status: 'Available' as const };
+        return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
 
     return { bookingsForDay, paymentsForDay, updatedRooms };
-  }, [selectedDate, initialBookings, initialPayments, initialRooms]);
+  }, [selectedDate, bookings, payments, rooms]);
 
 
-  if (loading) {
+  if (loading || dataLoading) {
     return (
       <div className="flex flex-col min-h-screen">
         <header className="flex items-center h-16 px-4 border-b shrink-0 md:px-6 justify-between">
@@ -101,7 +145,7 @@ export function DashboardPage({
                 <CalendarSection
                 selectedDate={selectedDate}
                 setSelectedDate={setSelectedDate}
-                bookings={[]} // We pass an empty array as we are using it just as a date picker here.
+                bookings={[]} 
                 isDatePickerOnly={true}
                 />
             </div>
@@ -110,7 +154,7 @@ export function DashboardPage({
         
         <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
-                <RoomSection rooms={filteredData.updatedRooms} bookings={initialBookings} />
+                <RoomSection rooms={filteredData.updatedRooms} bookings={bookings} />
             </div>
             <div className="lg:col-span-1">
                 <PaymentsSection

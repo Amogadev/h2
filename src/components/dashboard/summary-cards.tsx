@@ -29,13 +29,13 @@ const SummaryCards = ({ rooms }: SummaryCardsProps) => {
       title: 'Rooms Available',
       value: stats.availableRooms,
       icon: <Bed className="w-6 h-6 text-green-600" />,
-      colorClassName: 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800'
+      colorClassName: 'bg-green-950/50 border-green-800'
     },
     {
       title: 'Rooms Occupied',
       value: stats.occupiedRooms,
       icon: <UserCheck className="w-6 h-6 text-red-600" />,
-      colorClassName: 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'
+      colorClassName: 'bg-red-950/50 border-red-800'
     },
   ];
 

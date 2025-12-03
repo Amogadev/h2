@@ -1,96 +1,151 @@
+import {
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  setDoc,
+  query,
+  where,
+  Timestamp,
+  getDoc,
+  onSnapshot
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import type { Room, Booking, Payment } from './types';
-import { subDays, addDays, formatISO } from 'date-fns';
+import { subDays, addDays, formatISO, startOfDay } from 'date-fns';
+import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 
-const today = new Date();
 
-const mockRooms: Room[] = Array.from({ length: 7 }, (_, i) => ({
-  id: `room-${i + 1}`,
-  roomNumber: `${101 + i}`,
-  status: 'Available',
-}));
+const roomsCollection = collection(db, 'rooms');
 
-const mockBookings: Booking[] = [
-  { id: 'booking-1', roomNumber: '101', date: formatISO(today, { representation: 'date' }), guestName: 'John Doe', paymentStatus: 'Paid', checkIn: formatISO(today, { representation: 'date' }), checkOut: formatISO(addDays(today, 2), { representation: 'date' }), numPersons: 2 },
-  { id: 'booking-2', roomNumber: '103', date: formatISO(today, { representation: 'date' }), guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: formatISO(today, { representation: 'date' }), checkOut: formatISO(addDays(today, 3), { representation: 'date' }), numPersons: 1 },
-  { id: 'booking-3', roomNumber: '105', date: formatISO(subDays(today, 1), { representation: 'date' }), guestName: 'Peter Jones', paymentStatus: 'Pending', checkIn: formatISO(subDays(today, 1), { representation: 'date' }), checkOut: formatISO(today, { representation: 'date' }), numPersons: 3 },
-  { id: 'booking-4', roomNumber: '102', date: formatISO(addDays(today, 2), { representation: 'date' }), guestName: 'Mary Williams', paymentStatus: 'Paid', checkIn: formatISO(addDays(today, 2), { representation: 'date' }), checkOut: formatISO(addDays(today, 5), { representation: 'date' }), numPersons: 2 },
-  { id: 'booking-5', roomNumber: '101', date: formatISO(subDays(today, 5), { representation: 'date' }), guestName: 'Chris Brown', paymentStatus: 'Paid', checkIn: formatISO(subDays(today, 5), { representation: 'date' }), checkOut: formatISO(subDays(today, 3), { representation: 'date' }), numPersons: 1 },
-  { id: 'booking-6', roomNumber: '104', date: formatISO(today, { representation: 'date' }), guestName: 'Alice Johnson', paymentStatus: 'Paid', checkIn: formatISO(today, { representation: 'date' }), checkOut: formatISO(addDays(today, 1), { representation: 'date' }), numPersons: 1 },
-];
+// Function to add initial mock data to Firestore
+export async function seedInitialData() {
+  const roomsSnapshot = await getDocs(roomsCollection);
+  if (roomsSnapshot.empty) {
+    console.log('No rooms found, seeding initial data...');
+    const today = new Date();
+    const mockRooms: Omit<Room, 'id'>[] = Array.from({ length: 7 }, (_, i) => ({
+      roomNumber: `${101 + i}`,
+      status: 'Available',
+    }));
 
-const mockPayments: Payment[] = [
-    { id: 'payment-1', bookingId: 'booking-1', roomNumber: '101', amount: 250, mode: 'GPay', date: formatISO(today, { representation: 'date' }) },
-    { id: 'payment-2', bookingId: 'booking-2', roomNumber: '103', amount: 350, mode: 'UPI', date: formatISO(today, { representation: 'date' }) },
-    { id: 'payment-3', bookingId: 'booking-4', roomNumber: '102', amount: 500, mode: 'Net Banking', date: formatISO(addDays(today, 2), { representation: 'date' }) },
-    { id: 'payment-4', bookingId: 'booking-5', roomNumber: '101', amount: 150, mode: 'Cash', date: formatISO(subDays(today, 5), { representation: 'date' }) },
-    { id: 'payment-5', bookingId: 'booking-3', roomNumber: '105', amount: 450, mode: 'PhonePe', date: formatISO(subDays(today, 1), { representation: 'date' }) },
-    { id: 'payment-6', bookingId: 'booking-6', roomNumber: '104', amount: 180, mode: 'Cash', date: formatISO(today, { representation: 'date' }) },
-];
+    const roomRefs = await Promise.all(
+      mockRooms.map(roomData => addDoc(roomsCollection, roomData))
+    );
 
-// Update room statuses based on bookings for today
-mockRooms.forEach(room => {
-  const todaysBooking = mockBookings.find(b => b.roomNumber === room.roomNumber && b.date === formatISO(today, { representation: 'date' }));
-  if (todaysBooking) {
-    room.status = 'Occupied';
-    room.guestName = todaysBooking.guestName;
-    room.checkIn = todaysBooking.checkIn;
-    room.checkOut = todaysBooking.checkOut;
+    const mockBookings: Omit<Booking, 'id'>[] = [
+      { roomNumber: '101', date: formatISO(today, { representation: 'date' }), guestName: 'John Doe', paymentStatus: 'Paid', checkIn: formatISO(today, { representation_date: 'date' }), checkOut: formatISO(addDays(today, 2), { representation: 'date' }), numPersons: 2 },
+      { roomNumber: '103', date: formatISO(today, { representation: 'date' }), guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: formatISO(today, { representation: 'date' }), checkOut: formatISO(addDays(today, 3), { representation: 'date' }), numPersons: 1 },
+      { roomNumber: '105', date: formatISO(subDays(today, 1), { representation: 'date' }), guestName: 'Peter Jones', paymentStatus: 'Pending', checkIn: formatISO(subDays(today, 1), { representation: 'date' }), checkOut: formatISO(today, { representation: 'date' }), numPersons: 3 },
+    ];
+    
+    for (const bookingData of mockBookings) {
+        const roomQuery = query(roomsCollection, where("roomNumber", "==", bookingData.roomNumber));
+        const roomSnapshot = await getDocs(roomQuery);
+        if (!roomSnapshot.empty) {
+            const roomDoc = roomSnapshot.docs[0];
+            const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
+            const bookingRef = await addDoc(bookingsCollection, { ...bookingData, roomId: roomDoc.id });
+
+            if(bookingData.paymentStatus === 'Paid') {
+                const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
+                await addDoc(paymentsCollection, {
+                    bookingId: bookingRef.id,
+                    roomId: roomDoc.id,
+                    roomNumber: bookingData.roomNumber,
+                    amount: Math.floor(Math.random() * 500) + 100,
+                    mode: 'GPay',
+                    date: bookingData.date,
+                });
+            }
+            
+            await setDoc(roomDoc.ref, { 
+                status: 'Occupied',
+                guestName: bookingData.guestName,
+                checkIn: bookingData.checkIn,
+                checkOut: bookingData.checkOut,
+            }, { merge: true });
+        }
+    }
+     console.log('Finished seeding data.');
+  } else {
+    console.log('Rooms collection already exists, skipping seed.');
   }
-});
+}
 
-
-const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function getRooms(): Promise<Room[]> {
-  await simulateDelay(300);
-  return JSON.parse(JSON.stringify(mockRooms));
+  const snapshot = await getDocs(roomsCollection);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
 }
 
 export async function getBookings(): Promise<Booking[]> {
-  await simulateDelay(400);
-  return JSON.parse(JSON.stringify(mockBookings));
+    const bookings: Booking[] = [];
+    const roomsSnapshot = await getDocs(roomsCollection);
+    for (const roomDoc of roomsSnapshot.docs) {
+        const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
+        const bookingsSnapshot = await getDocs(bookingsCollection);
+        bookingsSnapshot.forEach(doc => {
+            bookings.push({ id: doc.id, ...doc.data() } as Booking);
+        });
+    }
+    return bookings;
 }
 
 export async function getPayments(): Promise<Payment[]> {
-  await simulateDelay(500);
-  return JSON.parse(JSON.stringify(mockPayments));
+    const payments: Payment[] = [];
+    const roomsSnapshot = await getDocs(roomsCollection);
+    for (const roomDoc of roomsSnapshot.docs) {
+        const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
+        const paymentsSnapshot = await getDocs(paymentsCollection);
+        paymentsSnapshot.forEach(doc => {
+            payments.push({ id: doc.id, ...doc.data() } as Payment);
+        });
+    }
+    return payments;
 }
 
-export async function getAllBookings(): Promise<Booking[]> {
-    await simulateDelay(600);
-    return JSON.parse(JSON.stringify(mockBookings));
-}
 
-export async function createBooking(newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus'>, payment: Omit<Payment, 'id' | 'bookingId' | 'date'>) {
-    await simulateDelay(1000);
-    const newBookingId = `booking-${mockBookings.length + 1}`;
-    const newBooking: Booking = {
-        ...newBookingData,
-        id: newBookingId,
-        date: newBookingData.checkIn,
-        paymentStatus: 'Paid',
-    };
-    mockBookings.push(newBooking);
+export async function createBooking(
+  newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId'>,
+  payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
+) {
+  const roomQuery = query(roomsCollection, where("roomNumber", "==", newBookingData.roomNumber));
+  const roomSnapshot = await getDocs(roomQuery);
 
-    const newPayment: Payment = {
-        ...payment,
-        id: `payment-${mockPayments.length + 1}`,
-        bookingId: newBookingId,
-        date: newBookingData.checkIn,
-    }
-    mockPayments.push(newPayment);
+  if (roomSnapshot.empty) {
+    throw new Error(`Room ${newBookingData.roomNumber} not found.`);
+  }
+  const roomDoc = roomSnapshot.docs[0];
 
-    const roomIndex = mockRooms.findIndex(r => r.roomNumber === newBookingData.roomNumber);
-    if(roomIndex !== -1) {
-        mockRooms[roomIndex].status = 'Occupied';
-        mockRooms[roomIndex].guestName = newBookingData.guestName;
-        mockRooms[roomIndex].checkIn = newBookingData.checkIn;
-        mockRooms[roomIndex].checkOut = newBookingData.checkOut;
-    }
+  const bookingWithRoomId = {
+    ...newBookingData,
+    roomId: roomDoc.id,
+    date: newBookingData.checkIn,
+    paymentStatus: 'Paid' as const,
+  };
 
-    console.log("New booking created: ", newBooking);
-    console.log("New payment created: ", newPayment);
-    console.log("Updated room: ", mockRooms[roomIndex]);
+  const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
+  const bookingRef = await addDoc(bookingsCollection, bookingWithRoomId);
 
-    return { booking: newBooking, payment: newPayment };
+  const paymentWithIds = {
+    ...payment,
+    roomId: roomDoc.id,
+    bookingId: bookingRef.id,
+    date: newBookingData.checkIn,
+  };
+  const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
+  await addDoc(paymentsCollection, paymentWithIds);
+
+  await setDoc(roomDoc.ref, {
+    status: 'Occupied',
+    guestName: newBookingData.guestName,
+    checkIn: newBookingData.checkIn,
+    checkOut: newBookingData.checkOut,
+  }, { merge: true });
+
+  return {
+    booking: { ...bookingWithRoomId, id: bookingRef.id },
+    payment: { ...paymentWithIds, id: 'temp-payment-id' } // Firestore generates ID, temp one is fine
+  };
 }

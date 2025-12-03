@@ -5,8 +5,8 @@ import type { Booking, Payment } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
 export async function handleCreateBooking(
-    bookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus'>,
-    paymentData: Omit<Payment, 'id' | 'bookingId' | 'date'>
+    bookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId'>,
+    paymentData: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
 ) {
     try {
         await createBookingData(bookingData, paymentData);

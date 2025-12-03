@@ -16,13 +16,13 @@ interface RoomSectionProps {
   bookings: Booking[];
 }
 
-const RoomCard = ({ room, booking }: { room: Room; booking?: Booking }) => {
+const RoomCard = ({ room }: { room: Room; }) => {
   const isAvailable = room.status === 'Available';
 
   return (
     <Card className={cn("flex flex-col", {
-        'bg-blue-100 border-blue-300 dark:bg-blue-900 dark:border-blue-700': isAvailable,
-        'bg-green-100 border-green-300 dark:bg-green-900 dark:border-green-700': !isAvailable,
+      'bg-blue-900/50 border-blue-700': isAvailable,
+      'bg-green-900/50 border-green-700': !isAvailable,
     })}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
@@ -76,10 +76,9 @@ const RoomSection = ({ rooms, bookings }: RoomSectionProps) => {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
-          {rooms.map(room => {
-            const booking = bookings.find(b => b.roomNumber === room.roomNumber);
-            return <RoomCard key={room.id} room={room} booking={booking} />;
-          })}
+          {rooms.map(room => (
+            <RoomCard key={room.id} room={room} />
+          ))}
         </div>
       </CardContent>
     </Card>

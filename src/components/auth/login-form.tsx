@@ -61,7 +61,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card>
+    <Card className="w-full max-w-sm">
       <CardHeader className="space-y-1 text-center">
         <div className="mx-auto">
           <Logo />

@@ -45,10 +45,10 @@ export function SignupForm() {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      await updateProfile(userCredential.user, {
-        displayName: values.name,
-      });
-
+      
+      // Also create a user document in Firestore
+      // This is a good place to add user roles or other app-specific user data
+      
       toast({
         title: "Account Created",
         description: "You have been successfully signed up.",

@@ -1,26 +1,35 @@
+"use client"
 import { DashboardPage } from '@/components/dashboard/dashboard-page';
-import { getRooms, getBookings, getPayments } from '@/lib/data';
+import { useAuth } from '@/hooks/use-auth';
 import { redirect } from 'next/navigation';
+import { useEffect } from 'react';
+import { seedInitialData } from '@/lib/data';
 
-// This is a placeholder for a real auth check.
-// In a real app, this would be handled by middleware or a session check.
-const isAuthenticated = true; 
+export default function Home() {
+  const { user, loading } = useAuth();
 
-export default async function Home() {
-  if (!isAuthenticated) {
-    redirect('/login');
+  useEffect(() => {
+    if (!loading && !user) {
+      redirect('/login');
+    }
+  }, [user, loading]);
+
+  // Seed data on initial load if needed
+  useEffect(() => {
+    seedInitialData();
+  }, []);
+
+
+  if (loading || !user) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <p>Loading...</p>
+        </div>
+    )
   }
 
-  const today = new Date();
-  const roomsData = await getRooms();
-  const bookingsData = await getBookings();
-  const paymentsData = await getPayments();
 
   return (
-    <DashboardPage
-      initialRooms={roomsData}
-      initialBookings={bookingsData}
-      initialPayments={paymentsData}
-    />
+    <DashboardPage />
   );
 }

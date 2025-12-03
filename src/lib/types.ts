@@ -9,6 +9,7 @@ export interface Room {
 
 export interface Booking {
   id: string;
+  roomId: string;
   roomNumber: string;
   date: string; // ISO string for the date
   guestName: string;
@@ -21,6 +22,7 @@ export interface Booking {
 export interface Payment {
   id: string;
   bookingId: string;
+  roomId: string;
   roomNumber: string;
   amount: number;
   mode: 'UPI' | 'Cash' | 'GPay' | 'PhonePe' | 'Net Banking' | 'Card';

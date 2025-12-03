@@ -6,6 +6,7 @@ import type { Payment, Booking } from '@/lib/types';
 import { DollarSign, Wallet, CreditCard, Landmark } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format, parseISO } from 'date-fns';
+import { Timestamp } from 'firebase/firestore';
 
 interface PaymentsSectionProps {
   payments: Payment[];
@@ -21,6 +22,12 @@ const paymentModeIcons: Record<string, React.ReactNode> = {
     'Card': <CreditCard className="w-5 h-5 text-orange-500" />,
 }
 
+function areDatesSame(date1: string | Timestamp, date2: string | Timestamp) {
+    const d1 = date1 instanceof Timestamp ? date1.toDate() : new Date(date1);
+    const d2 = date2 instanceof Timestamp ? date2.toDate() : new Date(date2);
+    return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0];
+}
+
 
 const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
   const paymentStats = useMemo(() => {
@@ -31,7 +38,7 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
         acc[payment.mode] = { total: 0, transactions: [] };
       }
       acc[payment.mode].total += payment.amount;
-      const booking = bookings.find(b => b.roomNumber === payment.roomNumber && b.date === payment.date);
+      const booking = bookings.find(b => b.roomNumber === payment.roomNumber && areDatesSame(b.date, payment.date));
       acc[payment.mode].transactions.push({
         ...payment,
         guestName: booking?.guestName || 'N/A',
@@ -41,6 +48,13 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
 
     return { totalIncome, paymentBreakdown, totalBookings: bookings.length };
   }, [payments, bookings]);
+
+  const formatDate = (date: string | Timestamp) => {
+    if (date instanceof Timestamp) {
+      return format(date.toDate(), 'MMM d');
+    }
+    return format(parseISO(date), 'MMM d');
+  }
 
   return (
     <Card className="h-full">
@@ -87,7 +101,7 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
                         <li key={tx.id} className="flex justify-between">
                           <span>{tx.guestName}</span>
                           <span className='text-muted-foreground'>
-                            ${tx.amount.toLocaleString()} on {format(parseISO(tx.date), 'MMM d')}
+                            ${tx.amount.toLocaleString()} on {formatDate(tx.date)}
                           </span>
                         </li>
                       ))}

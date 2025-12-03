@@ -1,12 +1,12 @@
 "use client"
 import { DashboardPage } from '@/components/dashboard/dashboard-page';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import { redirect } from 'next/navigation';
 import { useEffect } from 'react';
 import { seedInitialData } from '@/lib/data';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, isUserLoading: loading } = useUser();
 
   useEffect(() => {
     if (!loading && !user) {

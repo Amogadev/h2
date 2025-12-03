@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { DoorClosed, DoorOpen, User } from 'lucide-react';
 import type { Room, Booking } from '@/lib/types';
 import { BookingDialog } from './booking-dialog';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Timestamp } from 'firebase/firestore';
 
 interface RoomSectionProps {
   rooms: Room[];
@@ -18,6 +19,15 @@ interface RoomSectionProps {
 
 const RoomCard = ({ room }: { room: Room; }) => {
   const isAvailable = room.status === 'Available';
+
+  const formatDate = (date: string | Timestamp | undefined) => {
+    if (!date) return 'No booking info';
+    if (date instanceof Timestamp) {
+      return format(date.toDate(), 'MMM d');
+    }
+    // It's a string
+    return format(parseISO(date), 'MMM d');
+  }
 
   return (
     <Card className={cn("flex flex-col", {
@@ -46,9 +56,7 @@ const RoomCard = ({ room }: { room: Room; }) => {
               <span>{room.guestName}</span>
             </div>
             <p className='text-xs text-muted-foreground'>
-              {room.checkIn && room.checkOut
-                ? `Check-in: ${format(new Date(room.checkIn), 'MMM d')} | Check-out: ${format(new Date(room.checkOut), 'MMM d')}`
-                : 'No booking info'}
+              {`Check-in: ${formatDate(room.checkIn)} | Check-out: ${formatDate(room.checkOut)}`}
             </p>
           </div>
         )}

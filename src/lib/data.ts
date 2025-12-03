@@ -8,7 +8,8 @@ import {
   where,
   Timestamp,
   getDoc,
-  onSnapshot
+  onSnapshot,
+  collectionGroup
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import type { Room, Booking, Payment } from './types';
@@ -33,10 +34,10 @@ export async function seedInitialData() {
       mockRooms.map(roomData => addDoc(roomsCollection, roomData))
     );
 
-    const mockBookings: Omit<Booking, 'id'>[] = [
-      { roomNumber: '101', date: formatISO(today, { representation: 'date' }), guestName: 'John Doe', paymentStatus: 'Paid', checkIn: formatISO(today, { representation_date: 'date' }), checkOut: formatISO(addDays(today, 2), { representation: 'date' }), numPersons: 2 },
-      { roomNumber: '103', date: formatISO(today, { representation: 'date' }), guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: formatISO(today, { representation: 'date' }), checkOut: formatISO(addDays(today, 3), { representation: 'date' }), numPersons: 1 },
-      { roomNumber: '105', date: formatISO(subDays(today, 1), { representation: 'date' }), guestName: 'Peter Jones', paymentStatus: 'Pending', checkIn: formatISO(subDays(today, 1), { representation: 'date' }), checkOut: formatISO(today, { representation: 'date' }), numPersons: 3 },
+    const mockBookings: Omit<Booking, 'id' | 'roomId'>[] = [
+      { roomNumber: '101', date: Timestamp.fromDate(today), guestName: 'John Doe', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(today), checkOut: Timestamp.fromDate(addDays(today, 2)), numPersons: 2 },
+      { roomNumber: '103', date: Timestamp.fromDate(today), guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(today), checkOut: Timestamp.fromDate(addDays(today, 3)), numPersons: 1 },
+      { roomNumber: '105', date: Timestamp.fromDate(subDays(today, 1)), guestName: 'Peter Jones', paymentStatus: 'Pending', checkIn: Timestamp.fromDate(subDays(today, 1)), checkOut: Timestamp.fromDate(today), numPersons: 3 },
     ];
     
     for (const bookingData of mockBookings) {
@@ -107,7 +108,7 @@ export async function getPayments(): Promise<Payment[]> {
 
 
 export async function createBooking(
-  newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId'>,
+  newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId' | 'checkIn' | 'checkOut'> & { checkIn: Date, checkOut: Date },
   payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
 ) {
   const roomQuery = query(roomsCollection, where("roomNumber", "==", newBookingData.roomNumber));
@@ -121,28 +122,36 @@ export async function createBooking(
   const bookingWithRoomId = {
     ...newBookingData,
     roomId: roomDoc.id,
-    date: newBookingData.checkIn,
+    date: Timestamp.fromDate(newBookingData.checkIn),
+    checkIn: Timestamp.fromDate(newBookingData.checkIn),
+    checkOut: Timestamp.fromDate(newBookingData.checkOut),
     paymentStatus: 'Paid' as const,
   };
 
   const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
-  const bookingRef = await addDoc(bookingsCollection, bookingWithRoomId);
+  const bookingRef = doc(collection(bookingsCollection)); // Create a new doc ref with an auto-generated ID
+
+  setDocumentNonBlocking(bookingRef, bookingWithRoomId, { merge: true });
+
 
   const paymentWithIds = {
     ...payment,
     roomId: roomDoc.id,
     bookingId: bookingRef.id,
-    date: newBookingData.checkIn,
+    date: Timestamp.fromDate(newBookingData.checkIn),
   };
   const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
-  await addDoc(paymentsCollection, paymentWithIds);
+  
+  const paymentRef = doc(collection(paymentsCollection));
+  setDocumentNonBlocking(paymentRef, paymentWithIds, {merge: true});
 
-  await setDoc(roomDoc.ref, {
+
+  updateDocumentNonBlocking(roomDoc.ref, {
     status: 'Occupied',
     guestName: newBookingData.guestName,
-    checkIn: newBookingData.checkIn,
-    checkOut: newBookingData.checkOut,
-  }, { merge: true });
+    checkIn: Timestamp.fromDate(newBookingData.checkIn),
+    checkOut: Timestamp.fromDate(newBookingData.checkOut),
+  });
 
   return {
     booking: { ...bookingWithRoomId, id: bookingRef.id },

@@ -23,7 +23,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/hooks/use-toast';
-import { handleCreateBooking } from '@/app/actions';
+import { createBooking } from '@/lib/data';
 
 const bookingSchema = z.object({
   customerName: z.string().min(2, { message: 'Customer name is required' }),
@@ -47,32 +47,32 @@ export function BookingDialog({ room, children }: { room: Room; children: React.
   });
 
   const onSubmit = async (data: BookingFormValues) => {
-    const bookingData = {
-      roomNumber: room.roomNumber,
-      guestName: data.customerName,
-      checkIn: format(data.checkIn, 'yyyy-MM-dd'),
-      checkOut: format(data.checkOut, 'yyyy-MM-dd'),
-      numPersons: data.numPersons,
-    };
-    const paymentData = {
-      roomNumber: room.roomNumber,
-      amount: data.paymentAmount,
-      mode: data.paymentMode,
-    };
-
-    const result = await handleCreateBooking(bookingData, paymentData);
-
-    if (result.success) {
+    try {
+      const bookingData = {
+        roomNumber: room.roomNumber,
+        guestName: data.customerName,
+        checkIn: data.checkIn,
+        checkOut: data.checkOut,
+        numPersons: data.numPersons,
+      };
+      const paymentData = {
+        roomNumber: room.roomNumber,
+        amount: data.paymentAmount,
+        mode: data.paymentMode,
+      };
+  
+      await createBooking(bookingData, paymentData);
+  
       toast({
         title: 'Booking Successful!',
         description: `Room ${room.roomNumber} has been booked for ${data.customerName}.`,
       });
       setOpen(false);
       form.reset();
-    } else {
-      toast({
+    } catch (error) {
+       toast({
         title: 'Booking Failed',
-        description: result.message,
+        description: 'There was an error creating the booking.',
         variant: 'destructive',
       });
     }

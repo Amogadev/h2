@@ -1,21 +1,23 @@
+import type { Timestamp } from "firebase/firestore";
+
 export interface Room {
   id: string;
   roomNumber: string;
   status: 'Available' | 'Occupied' | 'Maintenance';
   guestName?: string;
-  checkIn?: string;
-  checkOut?:string;
+  checkIn?: string | Timestamp;
+  checkOut?:string | Timestamp;
 }
 
 export interface Booking {
   id: string;
   roomId: string;
   roomNumber: string;
-  date: string; // ISO string for the date
+  date: string | Timestamp;
   guestName: string;
   paymentStatus: 'Paid' | 'Pending';
-  checkIn: string;
-  checkOut: string;
+  checkIn: string | Timestamp;
+  checkOut: string | Timestamp;
   numPersons: number;
 }
 
@@ -26,5 +28,5 @@ export interface Payment {
   roomNumber: string;
   amount: number;
   mode: 'UPI' | 'Cash' | 'GPay' | 'PhonePe' | 'Net Banking' | 'Card';
-  date: string; // ISO string for the date
+  date: string | Timestamp;
 }

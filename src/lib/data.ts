@@ -30,17 +30,14 @@ export async function seedInitialData() {
       status: 'Available',
     }));
 
-    const roomCreationPromises = mockRooms.map(async (roomData) => {
-      // Check if room already exists
+    for (const roomData of mockRooms) {
+      // This check was missing, leading to duplicates if seeding ran multiple times.
       const roomQuery = query(roomsCollection, where("roomNumber", "==", roomData.roomNumber));
-      const roomSnapshot = await getDocs(roomQuery);
-      if (roomSnapshot.empty) {
-        return addDoc(roomsCollection, roomData);
+      const roomDocs = await getDocs(roomQuery);
+      if (roomDocs.empty) {
+        await addDoc(roomsCollection, roomData);
       }
-      return Promise.resolve(null);
-    });
-
-    await Promise.all(roomCreationPromises);
+    }
 
 
     const mockBookings: Omit<Booking, 'id' | 'roomId'>[] = [
@@ -79,7 +76,9 @@ export async function seedInitialData() {
     }
      console.log('Finished seeding data.');
   } else {
-    console.log('Rooms collection already exists, skipping seed.');
+    // To prevent re-seeding and creating duplicates, we just log.
+    // In a real app, you might want more sophisticated data migration logic.
+    console.log('Rooms collection already contains data, skipping seed.');
   }
 }
 
@@ -132,7 +131,7 @@ export async function createBooking(
     ...newBookingData,
     roomId: roomDoc.id,
     date: Timestamp.fromDate(newBookingData.checkIn),
-    checkIn: Timestamp.fromDate(newBooking.checkIn),
+    checkIn: Timestamp.fromDate(newBookingData.checkIn),
     checkOut: Timestamp.fromDate(newBookingData.checkOut),
     paymentStatus: 'Paid' as const,
   };

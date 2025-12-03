@@ -16,7 +16,9 @@ export default function Home() {
 
   // Seed data on initial load if needed
   useEffect(() => {
-    seedInitialData();
+    if (process.env.NODE_ENV === 'development') {
+        seedInitialData();
+    }
   }, []);
 
 

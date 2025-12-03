@@ -24,7 +24,7 @@ import { useState } from "react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  password: z.string().min(5, { message: "Password must be at least 5 characters." }),
 });
 
 export function LoginForm() {
@@ -34,8 +34,8 @@ export function LoginForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: "admin@gmail.com",
+      password: "admin",
     },
   });
 
@@ -67,9 +67,6 @@ export function LoginForm() {
           <Logo />
         </div>
         <CardTitle className="text-2xl">Welcome Back</CardTitle>
-        <CardDescription>
-          Enter your credentials to access your dashboard
-        </CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">

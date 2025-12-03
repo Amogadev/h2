@@ -1,5 +1,5 @@
 import { DashboardPage } from '@/components/dashboard/dashboard-page';
-import { getRooms, getBookings, getPayments, getAllBookings } from '@/lib/data';
+import { getRooms, getBookings, getPayments } from '@/lib/data';
 import { redirect } from 'next/navigation';
 
 // This is a placeholder for a real auth check.
@@ -15,14 +15,12 @@ export default async function Home() {
   const roomsData = await getRooms();
   const bookingsData = await getBookings();
   const paymentsData = await getPayments();
-  const allBookingsForAI = await getAllBookings();
 
   return (
     <DashboardPage
       initialRooms={roomsData}
       initialBookings={bookingsData}
       initialPayments={paymentsData}
-      allBookingsForAI={allBookingsForAI}
     />
   );
 }

@@ -11,20 +11,17 @@ import SummaryCards from '@/components/dashboard/summary-cards';
 import CalendarSection from '@/components/dashboard/calendar-section';
 import RoomSection from '@/components/dashboard/room-section';
 import PaymentsSection from '@/components/dashboard/payments-section';
-import RevenueProjectionSection from '@/components/dashboard/revenue-projection-section';
 
 interface DashboardPageProps {
   initialRooms: Room[];
   initialBookings: Booking[];
   initialPayments: Payment[];
-  allBookingsForAI: Booking[];
 }
 
 export function DashboardPage({
   initialRooms,
   initialBookings,
   initialPayments,
-  allBookingsForAI
 }: DashboardPageProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -114,12 +111,11 @@ export function DashboardPage({
           </div>
         </div>
 
-        <div className="grid gap-8 xl:grid-cols-2">
+        <div className="grid gap-8">
             <PaymentsSection
                 payments={filteredData.paymentsForDay}
                 bookings={filteredData.bookingsForDay}
             />
-            <RevenueProjectionSection allBookings={allBookingsForAI} />
         </div>
 
       </main>

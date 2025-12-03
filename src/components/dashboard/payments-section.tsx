@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { Payment, Booking } from '@/lib/types';
-import { DollarSign, Wallet } from 'lucide-react';
+import { DollarSign, Wallet, CreditCard, Landmark } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format, parseISO } from 'date-fns';
 
@@ -13,12 +13,12 @@ interface PaymentsSectionProps {
 }
 
 const paymentModeIcons: Record<string, React.ReactNode> = {
-    'GPay': <Wallet className="w-5 h-5 text-muted-foreground" />,
-    'UPI': <Wallet className="w-5 h-5 text-muted-foreground" />,
-    'Cash': <DollarSign className="w-5 h-5 text-muted-foreground" />,
-    'PhonePe': <Wallet className="w-5 h-5 text-muted-foreground" />,
-    'Net Banking': <Wallet className="w-5 h-5 text-muted-foreground" />,
-    'Card': <Wallet className="w-5 h-5 text-muted-foreground" />,
+    'GPay': <Wallet className="w-5 h-5 text-blue-500" />,
+    'UPI': <Wallet className="w-5 h-5 text-purple-500" />,
+    'Cash': <DollarSign className="w-5 h-5 text-green-500" />,
+    'PhonePe': <Wallet className="w-5 h-5 text-indigo-500" />,
+    'Net Banking': <Landmark className="w-5 h-5 text-red-500" />,
+    'Card': <CreditCard className="w-5 h-5 text-orange-500" />,
 }
 
 
@@ -31,7 +31,7 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
         acc[payment.mode] = { total: 0, transactions: [] };
       }
       acc[payment.mode].total += payment.amount;
-      const booking = bookings.find(b => b.id === payment.bookingId);
+      const booking = bookings.find(b => b.roomNumber === payment.roomNumber && b.date === payment.date);
       acc[payment.mode].transactions.push({
         ...payment,
         guestName: booking?.guestName || 'N/A',

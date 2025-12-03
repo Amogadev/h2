@@ -1,17 +1,20 @@
 import { SignupForm } from "@/components/auth/signup-form";
 import Image from "next/image";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 export default function SignupPage() {
+  const loginBg = PlaceHolderImages.find(p => p.id === 'login-background');
+
   return (
     <div className="relative flex items-center justify-center min-h-screen">
       <div className="absolute inset-0 w-full h-full">
         <Image
-          src="https://picsum.photos/seed/hotelLobby/1920/1080"
-          alt="Hotel Lobby"
+          src={loginBg?.imageUrl || "https://picsum.photos/seed/hotelLobby/1920/1080"}
+          alt={loginBg?.description || "Hotel Lobby"}
           layout="fill"
           objectFit="cover"
           className="z-0"
-          data-ai-hint="hotel lobby"
+          data-ai-hint={loginBg?.imageHint || "hotel lobby"}
         />
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
       </div>

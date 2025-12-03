@@ -45,8 +45,8 @@ export async function seedInitialData() {
     const updatedRoomsSnapshot = await getDocs(roomsCollection);
 
     const mockBookings: (Omit<Booking, 'id' | 'roomId' | 'date'> & { payment: Omit<Payment, 'id'|'bookingId'|'roomId'|'date'|'roomNumber'>})[] = [
-      { roomNumber: '101', guestName: 'John Doe', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(addDays(new Date(), -1)), checkOut: Timestamp.fromDate(addDays(new Date(), 1)), numPersons: 2, payment: { amount: 250, mode: 'GPay' } },
-      { roomNumber: '103', guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 2)), numPersons: 1, payment: { amount: 300, mode: 'Cash' }  },
+      { roomNumber: '101', guestName: 'John Doe', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 2)), numPersons: 2, payment: { amount: 250, mode: 'GPay' } },
+      { roomNumber: '103', guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 1)), numPersons: 1, payment: { amount: 300, mode: 'Cash' }  },
       { roomNumber: '105', guestName: 'Peter Jones', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 3)), numPersons: 3, payment: { amount: 450, mode: 'PhonePe' } },
     ];
     

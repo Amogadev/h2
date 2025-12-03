@@ -10,11 +10,12 @@ export default function LoginPage() {
       <div className="absolute inset-0 w-full h-full">
         <Image
           src={loginBg?.imageUrl || "https://picsum.photos/seed/hotelLobby/1920/1080"}
-          alt={loginBg?.description || "Hotel Lobby"}
+          alt={loginBg?.description || "A background image of a modern hotel lobby"}
           layout="fill"
           objectFit="cover"
           className="z-0"
           data-ai-hint={loginBg?.imageHint || "hotel lobby"}
+          priority
         />
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
       </div>

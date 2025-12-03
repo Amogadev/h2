@@ -30,7 +30,7 @@ const Logo = ({ className }: { className?: string }) => (
       <path d="M14 12H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M14 16H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
-    <span className="ml-2 text-xl font-bold text-foreground">HotelZenith</span>
+    <span className="ml-2 text-xl font-bold text-foreground">HOTEL</span>
   </div>
 );
 

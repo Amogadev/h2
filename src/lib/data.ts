@@ -19,104 +19,6 @@ import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocki
 
 const roomsCollection = collection(db, 'rooms');
 
-// Function to add initial mock data to Firestore
-export async function seedInitialData() {
-  const roomsQuery = query(roomsCollection);
-  const roomsSnapshot = await getDocs(roomsQuery);
-  
-  // Only seed if the collection is completely empty to avoid any duplicates.
-  if (roomsSnapshot.empty) {
-    console.log('Rooms collection is empty, seeding initial data...');
-    
-    const mockRooms: Omit<Room, 'id'>[] = Array.from({ length: 7 }, (_, i) => ({
-      roomNumber: `${101 + i}`,
-      status: 'Available',
-    }));
-
-    for (const roomData of mockRooms) {
-      const roomExistsQuery = query(roomsCollection, where("roomNumber", "==", roomData.roomNumber));
-      const existingRoomSnapshot = await getDocs(roomExistsQuery);
-      if (existingRoomSnapshot.empty) {
-        await addDoc(roomsCollection, roomData);
-      }
-    }
-
-    // Refresh snapshot after adding rooms
-    const updatedRoomsSnapshot = await getDocs(roomsCollection);
-
-    const mockBookings: (Omit<Booking, 'id' | 'roomId' | 'date'> & { payment: Omit<Payment, 'id'|'bookingId'|'roomId'|'date'|'roomNumber'>})[] = [
-      { roomNumber: '101', guestName: 'John Doe', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 2)), numPersons: 2, payment: { amount: 250, mode: 'GPay' } },
-      { roomNumber: '103', guestName: 'Jane Smith', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 1)), numPersons: 1, payment: { amount: 300, mode: 'Cash' }  },
-      { roomNumber: '105', guestName: 'Peter Jones', paymentStatus: 'Paid', checkIn: Timestamp.fromDate(new Date()), checkOut: Timestamp.fromDate(addDays(new Date(), 3)), numPersons: 3, payment: { amount: 450, mode: 'PhonePe' } },
-    ];
-    
-    for (const bookingData of mockBookings) {
-        const roomDoc = updatedRoomsSnapshot.docs.find(doc => doc.data().roomNumber === bookingData.roomNumber);
-
-        if (roomDoc) {
-            const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
-            const bookingRef = await addDoc(bookingsCollection, { 
-                ...bookingData, 
-                roomId: roomDoc.id,
-                date: bookingData.checkIn,
-            });
-
-            if(bookingData.paymentStatus === 'Paid') {
-                const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
-                await addDoc(paymentsCollection, {
-                    bookingId: bookingRef.id,
-                    roomId: roomDoc.id,
-                    roomNumber: bookingData.roomNumber,
-                    amount: bookingData.payment.amount,
-                    mode: bookingData.payment.mode,
-                    date: bookingData.checkIn,
-                });
-            }
-            
-            await setDoc(roomDoc.ref, { 
-                status: 'Occupied',
-            }, { merge: true });
-        }
-    }
-     console.log('Finished seeding data.');
-  } else {
-    console.log('Rooms collection is not empty, skipping data seeding.');
-  }
-}
-
-
-export async function getRooms(): Promise<Room[]> {
-  const snapshot = await getDocs(roomsCollection);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
-}
-
-export async function getBookings(): Promise<Booking[]> {
-    const bookings: Booking[] = [];
-    const roomsSnapshot = await getDocs(roomsCollection);
-    for (const roomDoc of roomsSnapshot.docs) {
-        const bookingsCollection = collection(db, `rooms/${roomDoc.id}/bookings`);
-        const bookingsSnapshot = await getDocs(bookingsCollection);
-        bookingsSnapshot.forEach(doc => {
-            bookings.push({ id: doc.id, ...doc.data() } as Booking);
-        });
-    }
-    return bookings;
-}
-
-export async function getPayments(): Promise<Payment[]> {
-    const payments: Payment[] = [];
-    const roomsSnapshot = await getDocs(roomsCollection);
-    for (const roomDoc of roomsSnapshot.docs) {
-        const paymentsCollection = collection(db, `rooms/${roomDoc.id}/payments`);
-        const paymentsSnapshot = await getDocs(paymentsCollection);
-        paymentsSnapshot.forEach(doc => {
-            payments.push({ id: doc.id, ...doc.data() } as Payment);
-        });
-    }
-    return payments;
-}
-
-
 export async function createBooking(
   newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId' | 'checkIn' | 'checkOut'> & { checkIn: Date, checkOut: Date },
   payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
@@ -125,10 +27,30 @@ export async function createBooking(
   const roomSnapshot = await getDocs(roomQuery);
 
   if (roomSnapshot.empty) {
-    throw new Error(`Room ${newBookingData.roomNumber} not found.`);
+    // If room doesn't exist, create it.
+    const newRoomRef = doc(collection(db, 'rooms'));
+    const newRoom = {
+      id: newRoomRef.id,
+      roomNumber: newBookingData.roomNumber,
+      status: 'Available',
+    };
+    await setDoc(newRoomRef, newRoom);
+    
+    // Now call createBooking again with the newly created room.
+    // To avoid infinite recursion in case of an issue, we can just proceed with the new reference
+    const roomDoc = await getDoc(newRoomRef);
+    return createBookingFromRoomDoc(roomDoc, newBookingData, payment);
+  } else {
+    const roomDoc = roomSnapshot.docs[0];
+    return createBookingFromRoomDoc(roomDoc, newBookingData, payment);
   }
-  const roomDoc = roomSnapshot.docs[0];
+}
 
+async function createBookingFromRoomDoc(
+  roomDoc: any,
+  newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId' | 'checkIn' | 'checkOut'> & { checkIn: Date, checkOut: Date },
+  payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
+) {
   const bookingWithRoomId = {
     ...newBookingData,
     roomId: roomDoc.id,

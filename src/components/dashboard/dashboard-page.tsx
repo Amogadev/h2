@@ -116,15 +116,18 @@ export function DashboardPage() {
       <DashboardHeader />
       <main className="flex-1 p-4 space-y-8 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
-            <div className="w-full sm:w-auto">
-                <CalendarSection
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-                bookings={[]} 
-                isDatePickerOnly={true}
-                />
-            </div>
+            <p className="text-muted-foreground">Your Oasis of Comfort and Care.</p>
+          </div>
+          <div className="w-full sm:w-auto">
+              <CalendarSection
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              bookings={[]} 
+              isDatePickerOnly={true}
+              />
+          </div>
         </div>
         <SummaryCards rooms={filteredData.updatedRooms} />
         

@@ -15,6 +15,7 @@ const mockBookings: Booking[] = [
   { id: 'booking-3', roomNumber: '105', date: formatISO(subDays(today, 1), { representation: 'date' }), guestName: 'Peter Jones', paymentStatus: 'Pending', checkIn: formatISO(subDays(today, 1), { representation: 'date' }), checkOut: formatISO(today, { representation: 'date' }), numPersons: 3 },
   { id: 'booking-4', roomNumber: '102', date: formatISO(addDays(today, 2), { representation: 'date' }), guestName: 'Mary Williams', paymentStatus: 'Paid', checkIn: formatISO(addDays(today, 2), { representation: 'date' }), checkOut: formatISO(addDays(today, 5), { representation: 'date' }), numPersons: 2 },
   { id: 'booking-5', roomNumber: '101', date: formatISO(subDays(today, 5), { representation: 'date' }), guestName: 'Chris Brown', paymentStatus: 'Paid', checkIn: formatISO(subDays(today, 5), { representation: 'date' }), checkOut: formatISO(subDays(today, 3), { representation: 'date' }), numPersons: 1 },
+  { id: 'booking-6', roomNumber: '104', date: formatISO(today, { representation: 'date' }), guestName: 'Alice Johnson', paymentStatus: 'Paid', checkIn: formatISO(today, { representation: 'date' }), checkOut: formatISO(addDays(today, 1), { representation: 'date' }), numPersons: 1 },
 ];
 
 const mockPayments: Payment[] = [
@@ -23,6 +24,7 @@ const mockPayments: Payment[] = [
     { id: 'payment-3', bookingId: 'booking-4', roomNumber: '102', amount: 500, mode: 'Net Banking', date: formatISO(addDays(today, 2), { representation: 'date' }) },
     { id: 'payment-4', bookingId: 'booking-5', roomNumber: '101', amount: 150, mode: 'Cash', date: formatISO(subDays(today, 5), { representation: 'date' }) },
     { id: 'payment-5', bookingId: 'booking-3', roomNumber: '105', amount: 450, mode: 'PhonePe', date: formatISO(subDays(today, 1), { representation: 'date' }) },
+    { id: 'payment-6', bookingId: 'booking-6', roomNumber: '104', amount: 180, mode: 'Cash', date: formatISO(today, { representation: 'date' }) },
 ];
 
 // Update room statuses based on bookings for today

@@ -52,7 +52,16 @@ export function DashboardPage() {
         return formatISO(paymentDate, { representation: 'date' }) === dateStr;
     });
 
-    const updatedRooms = (rooms || []).map(room => {
+    // 1. Filter out duplicates and sort the rooms
+    const uniqueRooms = (rooms || []).reduce((acc, current) => {
+        if (!acc.find(item => item.roomNumber === current.roomNumber)) {
+            acc.push(current);
+        }
+        return acc;
+    }, [] as Room[]).sort((a, b) => a.roomNumber.localeCompare(b.roomNumber));
+
+
+    const updatedRooms = uniqueRooms.map(room => {
         const currentBooking = (bookings || []).find(b => {
             const checkInDate = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
             const checkOutDate = b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string);

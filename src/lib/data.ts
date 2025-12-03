@@ -34,7 +34,11 @@ export async function seedInitialData() {
     }));
 
     for (const roomData of mockRooms) {
-      await addDoc(roomsCollection, roomData);
+      const roomExistsQuery = query(roomsCollection, where("roomNumber", "==", roomData.roomNumber));
+      const existingRoomSnapshot = await getDocs(roomExistsQuery);
+      if (existingRoomSnapshot.empty) {
+        await addDoc(roomsCollection, roomData);
+      }
     }
 
     // Refresh snapshot after adding rooms

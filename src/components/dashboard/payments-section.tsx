@@ -4,6 +4,8 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { Payment, Booking } from '@/lib/types';
 import { DollarSign, Wallet } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { format, parseISO } from 'date-fns';
 
 interface PaymentsSectionProps {
   payments: Payment[];
@@ -23,14 +25,21 @@ const paymentModeIcons: Record<string, React.ReactNode> = {
 const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
   const paymentStats = useMemo(() => {
     const totalIncome = payments.reduce((acc, p) => acc + p.amount, 0);
-    const paymentBreakdown = payments.reduce((acc, p) => {
-      acc[p.mode] = (acc[p.mode] || 0) + p.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const chartData = Object.entries(paymentBreakdown).map(([name, amount]) => ({ name, amount }));
     
-    return { totalIncome, chartData, totalBookings: bookings.length };
+    const paymentBreakdown = payments.reduce((acc, payment) => {
+      if (!acc[payment.mode]) {
+        acc[payment.mode] = { total: 0, transactions: [] };
+      }
+      acc[payment.mode].total += payment.amount;
+      const booking = bookings.find(b => b.id === payment.bookingId);
+      acc[payment.mode].transactions.push({
+        ...payment,
+        guestName: booking?.guestName || 'N/A',
+      });
+      return acc;
+    }, {} as Record<string, { total: number; transactions: (Payment & { guestName: string })[] }>);
+
+    return { totalIncome, paymentBreakdown, totalBookings: bookings.length };
   }, [payments, bookings]);
 
   return (
@@ -59,18 +68,34 @@ const PaymentsSection = ({ payments, bookings }: PaymentsSectionProps) => {
 
         <div>
           <h4 className="mb-4 text-sm font-medium text-center">Payment Breakdown</h4>
-          {paymentStats.chartData.length > 0 ? (
-            <div className="space-y-3">
-              {paymentStats.chartData.map(({ name, amount }) => (
-                <div key={name} className="flex items-center justify-between p-3 rounded-md bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    {paymentModeIcons[name] || <Wallet className="w-5 h-5 text-muted-foreground" />}
-                    <span className="font-medium">{name}</span>
-                  </div>
-                  <span className="font-semibold">${amount.toLocaleString()}</span>
-                </div>
+          {Object.keys(paymentStats.paymentBreakdown).length > 0 ? (
+            <Accordion type="multiple" className="w-full">
+              {Object.entries(paymentStats.paymentBreakdown).map(([mode, data]) => (
+                <AccordionItem value={mode} key={mode}>
+                  <AccordionTrigger>
+                    <div className="flex items-center justify-between w-full pr-4">
+                        <div className="flex items-center gap-3">
+                            {paymentModeIcons[mode] || <Wallet className="w-5 h-5 text-muted-foreground" />}
+                            <span className="font-medium">{mode}</span>
+                        </div>
+                        <span className="font-semibold">${data.total.toLocaleString()}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <ul className="pl-6 pr-2 space-y-2 text-sm">
+                      {data.transactions.map(tx => (
+                        <li key={tx.id} className="flex justify-between">
+                          <span>{tx.guestName}</span>
+                          <span className='text-muted-foreground'>
+                            ${tx.amount.toLocaleString()} on {format(parseISO(tx.date), 'MMM d')}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
           ) : (
             <div className="flex items-center justify-center h-24 text-sm text-center text-muted-foreground">
                 <p>No payment data for this date.</p>

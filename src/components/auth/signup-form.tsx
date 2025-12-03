@@ -46,10 +46,7 @@ export function SignupForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      
-      // Also create a user document in Firestore
-      // This is a good place to add user roles or other app-specific user data
+      await createUserWithEmailAndPassword(auth, values.email, values.password);
       
       toast({
         title: "Account Created",

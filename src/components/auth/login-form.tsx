@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -15,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import Link from "next/link";
 import Logo from "../logo";
 import { useState } from "react";
@@ -49,12 +50,31 @@ export function LoginForm() {
       });
       router.push("/");
     } catch (error: any) {
-      console.error("Login error", error);
-      toast({
-        title: "Login Failed",
-        description: "Invalid credentials. Please try again or sign up.",
-        variant: "destructive",
-      });
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        // If user does not exist, try to create a new account
+        try {
+          await createUserWithEmailAndPassword(auth, values.email, values.password);
+          toast({
+            title: "Account Created & Logged In",
+            description: "Welcome to your new account!",
+          });
+          router.push("/");
+        } catch (signupError: any) {
+          console.error("Signup error after login fail", signupError);
+          toast({
+            title: "Operation Failed",
+            description: signupError.message || "Could not sign in or create an account.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error("Login error", error);
+        toast({
+          title: "Login Failed",
+          description: error.message || "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      }
     } finally {
         setLoading(false);
     }

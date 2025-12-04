@@ -66,50 +66,55 @@ export function DashboardPage() {
 
 
     const updatedRooms = uniqueRooms.map(room => {
-        const relevantBooking = (bookings || [])
+        // Find all bookings for this room that haven't ended yet
+        const allRelevantBookings = (bookings || [])
             .filter(b => {
                 if (b.roomNumber.toString() !== room.roomNumber.toString()) return false;
-                // A booking is relevant if its checkout date is on or after the selected day
                 const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
                 return !isBefore(checkOut, startOfSelectedDay);
             })
-            // Sort by check-in date to find the earliest relevant booking
             .sort((a, b) => {
                 const aCheckIn = a.checkIn instanceof Timestamp ? a.checkIn.toDate() : new Date(a.checkIn as string);
                 const bCheckIn = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
                 return aCheckIn.getTime() - bCheckIn.getTime();
-            })[0];
+            });
 
-        if (relevantBooking) {
-            const checkIn = startOfDay(relevantBooking.checkIn instanceof Timestamp ? relevantBooking.checkIn.toDate() : new Date(relevantBooking.checkIn as string));
-            const checkOut = endOfDay(relevantBooking.checkOut instanceof Timestamp ? relevantBooking.checkOut.toDate() : new Date(relevantBooking.checkOut as string));
-            
-            // Check if the selected date falls within this booking's range
-            if (isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut })) {
-                return {
-                    ...room,
-                    status: 'Occupied' as const,
-                    guestName: relevantBooking.guestName,
-                    checkIn: relevantBooking.checkIn,
-                    checkOut: relevantBooking.checkOut,
-                    currentBooking: relevantBooking,
-                };
-            }
-            
-            // If the booking is in the future relative to the selected date
-            if (isAfter(checkIn, startOfSelectedDay)) {
-                return { 
-                    ...room, 
-                    status: 'Available' as const, // It's available now...
-                    guestName: undefined, // but has a future booking
-                    checkIn: undefined,
-                    checkOut: undefined,
-                    futureBooking: relevantBooking // Pass future booking info
-                };
-            }
+        // Find the booking that is currently active on the selected date
+        const activeBooking = allRelevantBookings.find(b => {
+            const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
+            const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
+            return isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut });
+        });
+
+        if (activeBooking) {
+            return {
+                ...room,
+                status: 'Occupied' as const,
+                guestName: activeBooking.guestName,
+                checkIn: activeBooking.checkIn,
+                checkOut: activeBooking.checkOut,
+                currentBooking: activeBooking,
+            };
+        }
+
+        // If no active booking, find the next future booking
+        const futureBooking = allRelevantBookings.find(b => {
+            const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
+            return isAfter(checkIn, startOfSelectedDay);
+        });
+
+        if (futureBooking) {
+            return {
+                ...room,
+                status: 'Booked' as const, // The room is Booked for the future, but available now
+                guestName: futureBooking.guestName, // show future guest
+                checkIn: futureBooking.checkIn, // show future dates
+                checkOut: futureBooking.checkOut,
+                futureBooking: futureBooking // Pass future booking info
+            };
         }
         
-        // Default to available if no relevant bookings found
+        // If no active or future bookings, it's available
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
     

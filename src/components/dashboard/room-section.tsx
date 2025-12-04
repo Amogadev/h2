@@ -20,7 +20,7 @@ interface RoomSectionProps {
 const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBooking?: Booking }}) => {
   const isAvailable = room.status === 'Available';
   const isOccupied = room.status === 'Occupied';
-  const hasFutureBooking = !!room.futureBooking;
+  const isBooked = room.status === 'Booked';
 
   const formatDate = (date: string | Timestamp | undefined) => {
     if (!date) return 'No booking info';
@@ -36,7 +36,7 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBoo
         return <DoorOpen className="w-4 h-4 mr-1" />;
       case 'Occupied':
         return <DoorClosed className="w-4 h-4 mr-1" />;
-      case 'Booked': // This status isn't used anymore but kept for safety
+      case 'Booked':
         return <CalendarClock className="w-4 h-4 mr-1" />;
       default:
         return <DoorOpen className="w-4 h-4 mr-1" />;
@@ -45,62 +45,55 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBoo
 
   return (
     <Card className={cn("flex flex-col", {
-      'bg-blue-900/50 border-blue-700': isAvailable,
+      'bg-card': isAvailable,
       'bg-green-900/50 border-green-700': isOccupied,
+      'bg-orange-900/50 border-orange-700': isBooked,
     })}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
           <CardTitle className="text-lg">Room {room.roomNumber}</CardTitle>
           <div className="flex flex-wrap gap-1 mt-1">
             <Badge 
-               variant={isAvailable ? 'secondary' : 'default'} 
+               variant={isOccupied ? 'default' : 'secondary'} 
+               className={cn({
+                 'bg-orange-600 hover:bg-orange-700': isBooked,
+                 'bg-green-600 hover:bg-green-700 text-white': isOccupied,
+               })}
             >
               {getStatusIcon()}
               {room.status}
             </Badge>
-            {hasFutureBooking && (
-                <Badge variant="default" className="bg-orange-600 hover:bg-orange-700">
-                    <CalendarClock className="w-4 h-4 mr-1" />
-                    Booked
-                </Badge>
-            )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col flex-grow">
-        {isAvailable ? (
-            <div className="flex flex-col items-center justify-center flex-grow text-center text-muted-foreground">
-                <DoorOpen className="w-12 h-12 mb-2" />
-                {hasFutureBooking ? (
-                    <div className="text-xs">
-                        <p>Available until {formatDate(room.futureBooking?.checkIn)}</p>
-                    </div>
-                ) : (
-                    <p>Ready for booking</p>
-                )}
+        {(isOccupied || isBooked) && room.guestName ? (
+            <div className="space-y-2 text-sm">
+                <div className="flex items-center">
+                <User className="w-4 h-4 mr-2 text-muted-foreground" />
+                <span>{room.guestName}</span>
+                </div>
+                <p className='text-xs text-muted-foreground'>
+                {`Check-in: ${formatDate(room.checkIn)} | Check-out: ${formatDate(room.checkOut)}`}
+                </p>
             </div>
         ) : (
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center">
-              <User className="w-4 h-4 mr-2 text-muted-foreground" />
-              <span>{room.guestName}</span>
+             <div className="flex flex-col items-center justify-center flex-grow text-center text-muted-foreground">
+                <DoorOpen className="w-12 h-12 mb-2" />
+                <p>Ready for booking</p>
             </div>
-            <p className='text-xs text-muted-foreground'>
-              {`Check-in: ${formatDate(room.checkIn)} | Check-out: ${formatDate(room.checkOut)}`}
-            </p>
-          </div>
         )}
         <div className="mt-4">
-          {isAvailable ? (
-            <BookingDialog room={room}>
-              <Button className="w-full">Book Now</Button>
-            </BookingDialog>
-          ) : room.currentBooking ? (
+          {isOccupied && room.currentBooking ? (
              <ViewBookingDialog booking={room.currentBooking}>
                 <Button variant="outline" className="w-full">View Booking</Button>
              </ViewBookingDialog>
+          ) : isBooked ? (
+             <Button className="w-full" disabled>Book Now</Button>
           ) : (
-             <Button variant="outline" className="w-full" disabled>View Booking</Button>
+            <BookingDialog room={room}>
+              <Button className="w-full">Book Now</Button>
+            </BookingDialog>
           )}
         </div>
       </CardContent>

@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Room, Booking, Payment } from '@/lib/types';
-import { formatISO, startOfDay, endOfDay, isFuture, isToday } from 'date-fns';
+import { formatISO, startOfDay, endOfDay, isFuture, isToday, isWithinInterval } from 'date-fns';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +40,7 @@ export function DashboardPage() {
 
 
   const filteredData = useMemo(() => {
-    const startOfSelectedDate = startOfDay(selectedDate);
+    const startOfSelectedDay = startOfDay(selectedDate);
     const dateStr = formatISO(selectedDate, { representation: 'date' });
     
     const bookingsForDay = (bookings || []).filter(b => {
@@ -61,29 +61,36 @@ export function DashboardPage() {
 
 
       const updatedRooms = uniqueRooms.map(room => {
-        const relevantBooking = (bookings || []).find(b => {
-            if (b.roomNumber.toString() !== room.roomNumber.toString()) return false;
-            
-            const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
-            const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
-            
-            // The room is relevant for this booking if the selected date is part of any booking range
-            return startOfSelectedDate < checkOut;
-        });
+        // Find the most relevant booking for this room that hasn't ended yet.
+        // We sort to get the soonest booking if there are multiple.
+        const relevantBooking = (bookings || [])
+            .filter(b => {
+                if (b.roomNumber.toString() !== room.roomNumber.toString()) return false;
+                const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
+                return checkOut >= startOfSelectedDay;
+            })
+            .sort((a, b) => {
+                const aCheckIn = a.checkIn instanceof Timestamp ? a.checkIn.toDate() : new Date(a.checkIn as string);
+                const bCheckIn = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
+                return aCheckIn.getTime() - bCheckIn.getTime();
+            })[0]; // Get the earliest upcoming or current booking
 
         if (relevantBooking) {
             const checkIn = startOfDay(relevantBooking.checkIn instanceof Timestamp ? relevantBooking.checkIn.toDate() : new Date(relevantBooking.checkIn as string));
             const checkOut = endOfDay(relevantBooking.checkOut instanceof Timestamp ? relevantBooking.checkOut.toDate() : new Date(relevantBooking.checkOut as string));
             
             let status: Room['status'];
-            if (startOfSelectedDate >= checkIn && startOfSelectedDate <= checkOut) {
+            
+            // isWithinInterval checks if startOfSelectedDay is between checkIn and checkOut (inclusive)
+            if (isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut })) {
                 status = 'Occupied';
-            } else if (startOfSelectedDate < checkIn) {
+            } else if (startOfSelectedDay < checkIn) {
                 status = 'Booked';
             } else {
                 status = 'Available'; 
             }
-
+            
+            // If the booking is in the past and we are here, it means the room is now available
             if (status === 'Available') {
                  return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
             }
@@ -98,6 +105,7 @@ export function DashboardPage() {
             };
         }
         
+        // No relevant (current or future) bookings found for this room.
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
 

@@ -119,6 +119,7 @@ export function DashboardPage() {
         const bookingCheckInDate = (booking.checkIn instanceof Timestamp ? booking.checkIn.toDate() : new Date(booking.checkIn as string)).toISOString().split('T')[0];
         
         const payment = (payments || []).find(p => {
+             if (!p.roomNumber || !p.date) return false;
              const paymentDate = (p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date as string)).toISOString().split('T')[0];
              return p.roomNumber.toString() === booking.roomNumber.toString() && paymentDate === bookingCheckInDate;
         });

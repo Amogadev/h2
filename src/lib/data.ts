@@ -20,7 +20,7 @@ import { errorEmitter, FirestorePermissionError } from '@/firebase';
 export async function createBooking(
   db: Firestore,
   newBookingData: Omit<Booking, 'id' | 'date' | 'roomId' | 'checkIn' | 'checkOut'> & { checkIn: Date, checkOut: Date, paymentStatus: 'Paid' | 'Advance Paid' },
-  payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
+  payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId' | 'roomNumber'>
 ) {
   const roomsCollection = collection(db, 'rooms');
   const roomQuery = query(roomsCollection, where("roomNumber", "==", newBookingData.roomNumber));
@@ -65,6 +65,7 @@ export async function createBooking(
   const paymentWithIds = {
     ...payment,
     roomId: roomDoc.id,
+    roomNumber: newBookingData.roomNumber,
     bookingId: bookingRef.id,
     date: Timestamp.fromDate(newBookingData.checkIn),
   };
@@ -95,3 +96,4 @@ export async function createBooking(
     payment: { ...paymentWithIds, id: paymentRef.id }
   };
 }
+

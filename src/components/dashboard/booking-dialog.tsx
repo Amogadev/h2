@@ -72,7 +72,6 @@ export function BookingDialog({ room, children }: { room: Room; children: React.
         paymentStatus: data.paymentType === 'Full' ? 'Paid' : 'Advance Paid',
       };
       const paymentData = {
-        roomNumber: room.roomNumber,
         amount: data.paymentAmount,
         mode: data.paymentMode,
       };

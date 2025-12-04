@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -20,10 +21,18 @@ interface CalendarSectionProps {
 }
 
 const CalendarSection = ({ selectedDate, setSelectedDate, bookings, isDatePickerOnly = false }: CalendarSectionProps) => {
+  const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      setIsPopoverOpen(false); // Close the popover on date selection
+    }
+  };
   
   if (isDatePickerOnly) {
     return (
-        <Popover>
+        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
             <PopoverTrigger asChild>
                 <Button
                 variant={'outline'}
@@ -37,7 +46,7 @@ const CalendarSection = ({ selectedDate, setSelectedDate, bookings, isDatePicker
                 <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
+                    onSelect={handleDateSelect}
                     initialFocus
                 />
             </PopoverContent>

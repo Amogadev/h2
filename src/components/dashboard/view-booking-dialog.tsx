@@ -26,6 +26,12 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const areDatesSame = (date1: string | Timestamp, date2: string | Timestamp) => {
+    const d1 = date1 instanceof Timestamp ? date1.toDate() : new Date(date1);
+    const d2 = date2 instanceof Timestamp ? date2.toDate() : new Date(date2);
+    return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0];
+  }
+
   const paymentsQuery = useMemoFirebase(() => 
     firestore && booking ? query(collection(firestore, `rooms/${booking.roomId}/payments`), where("bookingId", "==", booking.id)) : null
   , [firestore, booking]);
@@ -86,13 +92,6 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
         console.error('An error occurred during check-out:', error);
       });
   };
-
-  const areDatesSame = (date1: string | Timestamp, date2: string | Timestamp) => {
-    const d1 = date1 instanceof Timestamp ? date1.toDate() : new Date(date1);
-    const d2 = date2 instanceof Timestamp ? date2.toDate() : new Date(date2);
-    return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0];
-  }
-
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

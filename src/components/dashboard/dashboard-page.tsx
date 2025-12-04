@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Room, Booking, Payment } from '@/lib/types';
-import { formatISO, startOfDay, endOfDay, isWithinInterval, isAfter } from 'date-fns';
+import { formatISO, startOfDay, endOfDay, isWithinInterval, isAfter, isBefore } from 'date-fns';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,13 +65,15 @@ export function DashboardPage() {
       });
 
 
-      const updatedRooms = uniqueRooms.map(room => {
+    const updatedRooms = uniqueRooms.map(room => {
         const relevantBooking = (bookings || [])
             .filter(b => {
                 if (b.roomNumber.toString() !== room.roomNumber.toString()) return false;
+                // A booking is relevant if its checkout date is on or after the selected day
                 const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
-                return checkOut >= startOfSelectedDay;
+                return !isBefore(checkOut, startOfSelectedDay);
             })
+            // Sort by check-in date to find the earliest relevant booking
             .sort((a, b) => {
                 const aCheckIn = a.checkIn instanceof Timestamp ? a.checkIn.toDate() : new Date(a.checkIn as string);
                 const bCheckIn = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
@@ -82,30 +84,32 @@ export function DashboardPage() {
             const checkIn = startOfDay(relevantBooking.checkIn instanceof Timestamp ? relevantBooking.checkIn.toDate() : new Date(relevantBooking.checkIn as string));
             const checkOut = endOfDay(relevantBooking.checkOut instanceof Timestamp ? relevantBooking.checkOut.toDate() : new Date(relevantBooking.checkOut as string));
             
-            let status: Room['status'];
-            
+            // Check if the selected date falls within this booking's range
             if (isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut })) {
-                status = 'Occupied';
-            } else if (isAfter(checkIn, startOfSelectedDay)) {
-                status = 'Booked';
-            } else {
-                status = 'Available'; 
+                return {
+                    ...room,
+                    status: 'Occupied' as const,
+                    guestName: relevantBooking.guestName,
+                    checkIn: relevantBooking.checkIn,
+                    checkOut: relevantBooking.checkOut,
+                    currentBooking: relevantBooking,
+                };
             }
             
-            if (status === 'Available') {
-                 return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
+            // If the booking is in the future relative to the selected date
+            if (isAfter(checkIn, startOfSelectedDay)) {
+                return { 
+                    ...room, 
+                    status: 'Available' as const, // It's available now...
+                    guestName: undefined, // but has a future booking
+                    checkIn: undefined,
+                    checkOut: undefined,
+                    futureBooking: relevantBooking // Pass future booking info
+                };
             }
-
-            return {
-                ...room,
-                status: status,
-                guestName: relevantBooking.guestName,
-                checkIn: relevantBooking.checkIn,
-                checkOut: relevantBooking.checkOut,
-                currentBooking: relevantBooking,
-            };
         }
         
+        // Default to available if no relevant bookings found
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
     
@@ -197,5 +201,7 @@ export function DashboardPage() {
     </div>
   );
 }
+
+    
 
     

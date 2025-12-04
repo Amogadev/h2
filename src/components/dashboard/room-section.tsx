@@ -14,12 +14,13 @@ import { Timestamp } from 'firebase/firestore';
 import { ViewBookingDialog } from './view-booking-dialog';
 
 interface RoomSectionProps {
-  rooms: (Room & { currentBooking?: Booking })[];
+  rooms: (Room & { currentBooking?: Booking, futureBooking?: Booking })[];
 }
 
-const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking }}) => {
+const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBooking?: Booking }}) => {
   const isAvailable = room.status === 'Available';
-  const isBooked = room.status === 'Booked';
+  const isOccupied = room.status === 'Occupied';
+  const hasFutureBooking = !!room.futureBooking;
 
   const formatDate = (date: string | Timestamp | undefined) => {
     if (!date) return 'No booking info';
@@ -35,7 +36,7 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking }}) => {
         return <DoorOpen className="w-4 h-4 mr-1" />;
       case 'Occupied':
         return <DoorClosed className="w-4 h-4 mr-1" />;
-      case 'Booked':
+      case 'Booked': // This status isn't used anymore but kept for safety
         return <CalendarClock className="w-4 h-4 mr-1" />;
       default:
         return <DoorOpen className="w-4 h-4 mr-1" />;
@@ -45,29 +46,39 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking }}) => {
   return (
     <Card className={cn("flex flex-col", {
       'bg-blue-900/50 border-blue-700': isAvailable,
-      'bg-green-900/50 border-green-700': room.status === 'Occupied',
-      'bg-orange-900/50 border-orange-700': isBooked,
+      'bg-green-900/50 border-green-700': isOccupied,
     })}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
           <CardTitle className="text-lg">Room {room.roomNumber}</CardTitle>
-          <Badge 
-             variant={isAvailable ? 'secondary' : 'default'} 
-             className={cn({
-                'bg-orange-400 text-black': isBooked
-             })}
-          >
-            {getStatusIcon()}
-            {room.status}
-          </Badge>
+          <div className="flex flex-wrap gap-1 mt-1">
+            <Badge 
+               variant={isAvailable ? 'secondary' : 'default'} 
+            >
+              {getStatusIcon()}
+              {room.status}
+            </Badge>
+            {hasFutureBooking && (
+                <Badge variant="default" className="bg-orange-600 hover:bg-orange-700">
+                    <CalendarClock className="w-4 h-4 mr-1" />
+                    Booked
+                </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col flex-grow">
         {isAvailable ? (
-          <div className="flex flex-col items-center justify-center flex-grow text-center text-muted-foreground">
-             <DoorOpen className="w-12 h-12 mb-2" />
-            <p>Ready for booking</p>
-          </div>
+            <div className="flex flex-col items-center justify-center flex-grow text-center text-muted-foreground">
+                <DoorOpen className="w-12 h-12 mb-2" />
+                {hasFutureBooking ? (
+                    <div className="text-xs">
+                        <p>Available until {formatDate(room.futureBooking?.checkIn)}</p>
+                    </div>
+                ) : (
+                    <p>Ready for booking</p>
+                )}
+            </div>
         ) : (
           <div className="space-y-2 text-sm">
             <div className="flex items-center">
@@ -89,7 +100,7 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking }}) => {
                 <Button variant="outline" className="w-full">View Booking</Button>
              </ViewBookingDialog>
           ) : (
-            <Button variant="outline" className="w-full" disabled>View Booking</Button>
+             <Button variant="outline" className="w-full" disabled>View Booking</Button>
           )}
         </div>
       </CardContent>
@@ -117,3 +128,5 @@ const RoomSection = ({ rooms }: RoomSectionProps) => {
 };
 
 export default RoomSection;
+
+    

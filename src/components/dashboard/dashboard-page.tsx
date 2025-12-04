@@ -60,59 +60,43 @@ export function DashboardPage() {
       .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber));
 
 
-    const updatedRooms = uniqueRooms.map(room => {
-        const bookingForRoom = (bookings || []).find(b => {
-            const checkInDate = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
-            const checkOutDate = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
-            return b.roomNumber.toString() === room.roomNumber.toString() && startOfSelectedDate >= checkInDate && startOfSelectedDate <= checkOutDate;
+      const updatedRooms = uniqueRooms.map(room => {
+        const relevantBooking = (bookings || []).find(b => {
+            if (b.roomNumber.toString() !== room.roomNumber.toString()) return false;
+            
+            const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
+            const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
+            
+            // Is the selected date within this booking's range?
+            const isOccupiedNow = startOfSelectedDate >= checkIn && startOfSelectedDate <= checkOut;
+            
+            // Is there a booking in the future for this room relative to selected date?
+            const isBookedForFuture = startOfSelectedDate < checkIn;
+
+            return isOccupiedNow || isBookedForFuture;
         });
 
-        if (bookingForRoom) {
-            const checkInDate = startOfDay(bookingForRoom.checkIn instanceof Timestamp ? bookingForRoom.checkIn.toDate() : new Date(bookingForRoom.checkIn as string));
+        if (relevantBooking) {
+            const checkIn = startOfDay(relevantBooking.checkIn instanceof Timestamp ? relevantBooking.checkIn.toDate() : new Date(relevantBooking.checkIn as string));
+            const checkOut = endOfDay(relevantBooking.checkOut instanceof Timestamp ? relevantBooking.checkOut.toDate() : new Date(relevantBooking.checkOut as string));
             
-            let status: Room['status'] = 'Available';
-            if (startOfSelectedDate >= checkInDate) {
-              status = 'Occupied';
-            } else {
-              status = 'Booked';
-            }
-
-            // If we are looking at today, but the check-in is in the future, it's 'Booked', not 'Occupied'
-            if (isToday(startOfSelectedDate) && isFuture(checkInDate)) {
-                 status = 'Booked';
-            }
-             // if selected date is in the future and there is a booking, it's 'Booked'
-            if (isFuture(startOfSelectedDate)) {
-                status = 'Booked';
-            }
-
-            // A room is only 'Occupied' if the selected date falls within the booking period.
-            if(startOfSelectedDate >= checkInDate && startOfSelectedDate <= endOfDay(bookingForRoom.checkOut instanceof Timestamp ? bookingForRoom.checkOut.toDate() : new Date(bookingForRoom.checkOut as string))) {
+            let status: Room['status'];
+            if (startOfSelectedDate >= checkIn && startOfSelectedDate <= checkOut) {
                 status = 'Occupied';
             } else {
-                // If there's a booking but not for today, it might be available or booked for another day.
-                // We need to check if there are ANY future bookings for this room.
-                 const futureBooking = (bookings || []).find(b => 
-                    b.roomNumber.toString() === room.roomNumber.toString() && 
-                    isFuture(startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string)))
-                );
-                if (futureBooking && startOfSelectedDate < startOfDay(futureBooking.checkIn instanceof Timestamp ? futureBooking.checkIn.toDate() : new Date(futureBooking.checkIn as string))) {
-                    status = 'Booked'
-                } else {
-                    status = 'Available'
-                }
+                status = 'Booked';
             }
-
 
             return {
                 ...room,
                 status: status,
-                guestName: bookingForRoom.guestName,
-                checkIn: bookingForRoom.checkIn,
-                checkOut: bookingForRoom.checkOut,
-                currentBooking: bookingForRoom,
+                guestName: relevantBooking.guestName,
+                checkIn: relevantBooking.checkIn,
+                checkOut: relevantBooking.checkOut,
+                currentBooking: relevantBooking,
             };
         }
+        
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
 

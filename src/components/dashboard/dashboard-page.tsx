@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Room, Booking, Payment } from '@/lib/types';
-import { formatISO, startOfDay } from 'date-fns';
+import { formatISO, startOfDay, endOfDay } from 'date-fns';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -63,7 +63,7 @@ export function DashboardPage() {
         const currentBooking = (bookings || []).find(b => {
             const checkInDate = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
             const checkOutDate = b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string);
-            return b.roomNumber.toString() === room.roomNumber.toString() && selectedDate >= startOfDay(checkInDate) && selectedDate < startOfDay(checkOutDate);
+            return b.roomNumber.toString() === room.roomNumber.toString() && selectedDate >= startOfDay(checkInDate) && selectedDate <= endOfDay(checkOutDate);
         });
 
         if (currentBooking) {

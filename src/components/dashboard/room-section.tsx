@@ -54,7 +54,7 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking }}) => {
           <Badge 
              variant={isAvailable ? 'secondary' : 'default'} 
              className={cn({
-                'bg-orange-500 text-white': isBooked
+                'bg-orange-400 text-black': isBooked
              })}
           >
             {getStatusIcon()}

@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Room, Booking, Payment } from '@/lib/types';
-import { formatISO, startOfDay, endOfDay, isWithinInterval, isAfter } from 'date-fns';
+import { formatISO, startOfDay, endOfDay, isWithinInterval, isAfter, isToday } from 'date-fns';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,12 +32,39 @@ export function DashboardPage() {
   const { data: payments, isLoading: paymentsLoading } = useCollection<Payment>(paymentsQuery);
   
   const dataLoading = roomsLoading || bookingsLoading || paymentsLoading;
+  
+  const [futureBookingsCount, setFutureBookingsCount] = useState(0);
+  const [futureBookingsWithPayments, setFutureBookingsWithPayments] = useState<(Booking & { payment?: Payment; })[]>([]);
+
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/login');
     }
   }, [user, loading, router]);
+  
+  useEffect(() => {
+    if (bookings && payments) {
+        const today = startOfDay(new Date());
+        const futureBookings = (bookings || []).filter(b => {
+            const checkInDate = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
+            return isAfter(checkInDate, today);
+        });
+
+        const futureBookingsWithPaymentsData = futureBookings.map(booking => {
+            const bookingCheckInDate = (booking.checkIn instanceof Timestamp ? booking.checkIn.toDate() : new Date(booking.checkIn as string)).toISOString().split('T')[0];
+            const payment = (payments || []).find(p => {
+                if (!p.roomNumber) return false;
+                const paymentDate = (p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date as string)).toISOString().split('T')[0];
+                return p.roomNumber.toString() === booking.roomNumber.toString() && paymentDate === bookingCheckInDate;
+            });
+            return { ...booking, payment };
+        });
+
+        setFutureBookingsCount(futureBookings.length);
+        setFutureBookingsWithPayments(futureBookingsWithPaymentsData);
+    }
+  }, [bookings, payments]);
 
 
   const filteredData = useMemo(() => {
@@ -113,22 +140,7 @@ export function DashboardPage() {
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
     
-    const today = startOfDay(new Date());
-    const futureBookings = (bookings || []).filter(b => {
-        const checkInDate = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
-        return isAfter(checkInDate, today);
-    });
-    
-    const futureBookingsWithPayments = futureBookings.map(booking => {
-        const payment = (payments || []).find(p => {
-             if (!p.bookingId) return false;
-             return p.bookingId === booking.id;
-        });
-        return { ...booking, payment };
-    });
-
-
-    return { bookingsForDay, paymentsForDay, updatedRooms, futureBookingsWithPayments };
+    return { bookingsForDay, paymentsForDay, updatedRooms };
   }, [selectedDate, bookings, payments, rooms]);
 
 
@@ -178,8 +190,8 @@ export function DashboardPage() {
               />
           </div>
         </div>
-        <FutureBookingsDialog bookings={filteredData.futureBookingsWithPayments}>
-          <SummaryCards rooms={filteredData.updatedRooms} futureBookingsCount={filteredData.futureBookingsWithPayments.length} />
+        <FutureBookingsDialog bookings={futureBookingsWithPayments}>
+          <SummaryCards rooms={filteredData.updatedRooms} futureBookingsCount={futureBookingsCount} />
         </FutureBookingsDialog>
         
         <div className="grid gap-8 lg:grid-cols-3">
@@ -198,7 +210,3 @@ export function DashboardPage() {
     </div>
   );
 }
-
-    
-
-    

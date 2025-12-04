@@ -10,10 +10,9 @@ import { DialogTrigger } from '../ui/dialog';
 
 interface SummaryCardsProps {
   rooms: Room[];
-  children?: React.ReactNode;
 }
 
-const SummaryCards = ({ rooms, children }: SummaryCardsProps) => {
+const SummaryCards = ({ rooms }: SummaryCardsProps) => {
   const stats = useMemo(() => {
     const totalRooms = rooms.length;
     const occupiedRooms = rooms.filter(r => r.status === 'Occupied').length;
@@ -65,7 +64,7 @@ const SummaryCards = ({ rooms, children }: SummaryCardsProps) => {
             </Card>
         );
 
-        if (card.isClickable && children) {
+        if (card.isClickable) {
             return (
                 <DialogTrigger asChild key={card.title}>
                     {CardComponent}
@@ -75,7 +74,6 @@ const SummaryCards = ({ rooms, children }: SummaryCardsProps) => {
 
         return CardComponent;
       })}
-       {children}
     </div>
   );
 };

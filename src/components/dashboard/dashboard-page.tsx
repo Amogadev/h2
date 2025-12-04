@@ -171,9 +171,9 @@ export function DashboardPage() {
               />
           </div>
         </div>
-        <SummaryCards rooms={filteredData.updatedRooms}>
-             <FutureBookingsDialog bookings={filteredData.futureBookingsWithPayments} />
-        </SummaryCards>
+        <FutureBookingsDialog bookings={filteredData.futureBookingsWithPayments}>
+          <SummaryCards rooms={filteredData.updatedRooms} />
+        </FutureBookingsDialog>
         
         <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">

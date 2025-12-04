@@ -18,6 +18,7 @@ import { Calendar, User, DollarSign, CreditCard, Wallet, Landmark } from 'lucide
 
 interface FutureBookingsDialogProps {
   bookings: (Booking & { payment?: Payment })[];
+  children: React.ReactNode;
 }
 
 const paymentModeIcons: Record<string, React.ReactNode> = {
@@ -29,7 +30,7 @@ const paymentModeIcons: Record<string, React.ReactNode> = {
     'Card': <CreditCard className="w-4 h-4" />,
 };
 
-export function FutureBookingsDialog({ bookings }: FutureBookingsDialogProps) {
+export function FutureBookingsDialog({ bookings, children }: FutureBookingsDialogProps) {
   const formatDate = (date: string | Timestamp | undefined) => {
     if (!date) return 'N/A';
     const d = date instanceof Timestamp ? date.toDate() : new Date(date);
@@ -38,7 +39,7 @@ export function FutureBookingsDialog({ bookings }: FutureBookingsDialogProps) {
 
   return (
     <Dialog>
-      {/* The DialogTrigger is now wrapping the card in summary-cards.tsx */}
+      {children}
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Upcoming Bookings</DialogTitle>

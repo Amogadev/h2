@@ -19,7 +19,7 @@ import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 export async function createBooking(
   db: Firestore,
-  newBookingData: Omit<Booking, 'id' | 'date' | 'paymentStatus' | 'roomId' | 'checkIn' | 'checkOut'> & { checkIn: Date, checkOut: Date },
+  newBookingData: Omit<Booking, 'id' | 'date' | 'roomId' | 'checkIn' | 'checkOut'> & { checkIn: Date, checkOut: Date, paymentStatus: 'Paid' | 'Advance Paid' },
   payment: Omit<Payment, 'id' | 'bookingId' | 'date' | 'roomId'>
 ) {
   const roomsCollection = collection(db, 'rooms');
@@ -52,14 +52,13 @@ export async function createBooking(
   const batch = writeBatch(db);
 
   const bookingRef = doc(collection(db, `rooms/${roomDoc.id}/bookings`));
-  const bookingWithRoomId = {
+  const bookingWithRoomId: Booking = {
     ...newBookingData,
     id: bookingRef.id,
     roomId: roomDoc.id,
     date: Timestamp.fromDate(newBookingData.checkIn),
     checkIn: Timestamp.fromDate(newBookingData.checkIn),
     checkOut: Timestamp.fromDate(newBookingData.checkOut),
-    paymentStatus: 'Paid' as const,
   };
   batch.set(bookingRef, bookingWithRoomId);
 

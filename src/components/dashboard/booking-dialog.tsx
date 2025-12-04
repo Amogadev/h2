@@ -26,12 +26,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/hooks/use-toast';
 import { createBooking } from '@/lib/data';
 import { useFirestore } from '@/firebase';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 const bookingSchema = z.object({
   customerName: z.string().min(2, { message: 'Customer name is required' }),
   checkIn: z.date({ required_error: 'Check-in date is required' }),
   checkOut: z.date({ required_error: 'Check-out date is required' }),
   numPersons: z.coerce.number().min(1, { message: 'At least one person is required' }),
+  paymentType: z.enum(['Full', 'Advance']),
   paymentMode: z.enum(['UPI', 'Cash', 'GPay', 'PhonePe', 'Net Banking', 'Card']),
   paymentAmount: z.coerce.number().min(1, { message: 'Payment amount is required' }),
 });
@@ -46,6 +48,7 @@ export function BookingDialog({ room, children }: { room: Room; children: React.
     resolver: zodResolver(bookingSchema),
     defaultValues: {
       numPersons: 1,
+      paymentType: 'Full'
     },
   });
 
@@ -66,6 +69,7 @@ export function BookingDialog({ room, children }: { room: Room; children: React.
         checkIn: data.checkIn,
         checkOut: data.checkOut,
         numPersons: data.numPersons,
+        paymentStatus: data.paymentType === 'Full' ? 'Paid' : 'Advance Paid',
       };
       const paymentData = {
         roomNumber: room.roomNumber,
@@ -164,6 +168,30 @@ export function BookingDialog({ room, children }: { room: Room; children: React.
             <Label htmlFor="numPersons">Number of Persons</Label>
             <Input id="numPersons" type="number" {...form.register('numPersons')} />
             {form.formState.errors.numPersons && <p className="text-sm text-destructive">{form.formState.errors.numPersons.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Payment Type</Label>
+            <Controller
+              name="paymentType"
+              control={form.control}
+              render={({ field }) => (
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="flex items-center gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Full" id="full-payment" />
+                    <Label htmlFor="full-payment">Full Amount</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Advance" id="advance-payment" />
+                    <Label htmlFor="advance-payment">Advance Payment</Label>
+                  </div>
+                </RadioGroup>
+              )}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

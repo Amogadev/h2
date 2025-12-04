@@ -1,3 +1,4 @@
+
 import type { Timestamp } from "firebase/firestore";
 
 export interface Room {
@@ -15,7 +16,7 @@ export interface Booking {
   roomNumber: string;
   date: string | Timestamp;
   guestName: string;
-  paymentStatus: 'Paid' | 'Pending';
+  paymentStatus: 'Paid' | 'Pending' | 'Advance Paid';
   checkIn: string | Timestamp;
   checkOut: string | Timestamp;
   numPersons: number;

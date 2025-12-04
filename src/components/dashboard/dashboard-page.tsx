@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Room, Booking, Payment } from '@/lib/types';
-import { formatISO, startOfDay, endOfDay, isFuture, isToday, isWithinInterval } from 'date-fns';
+import { formatISO, startOfDay, endOfDay, isWithinInterval, isAfter } from 'date-fns';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,7 @@ import DashboardHeader from '@/components/dashboard/header';
 import SummaryCards from '@/components/dashboard/summary-cards';
 import RoomSection from '@/components/dashboard/room-section';
 import PaymentsSection from '@/components/dashboard/payments-section';
-import { collection, query, onSnapshot, getFirestore, collectionGroup, Timestamp } from 'firebase/firestore';
+import { collection, query, collectionGroup, Timestamp } from 'firebase/firestore';
 import CalendarSection from './calendar-section';
 import { FutureBookingsDialog } from './future-bookings-dialog';
 
@@ -58,12 +58,14 @@ export function DashboardPage() {
       .filter((room, index, self) => 
         index === self.findIndex((r) => r.roomNumber === room.roomNumber)
       )
-      .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber));
+      .sort((a, b) => {
+        const roomNumA = parseInt(a.roomNumber, 10);
+        const roomNumB = parseInt(b.roomNumber, 10);
+        return roomNumA - roomNumB;
+      });
 
 
       const updatedRooms = uniqueRooms.map(room => {
-        // Find the most relevant booking for this room that hasn't ended yet.
-        // We sort to get the soonest booking if there are multiple.
         const relevantBooking = (bookings || [])
             .filter(b => {
                 if (b.roomNumber.toString() !== room.roomNumber.toString()) return false;
@@ -74,7 +76,7 @@ export function DashboardPage() {
                 const aCheckIn = a.checkIn instanceof Timestamp ? a.checkIn.toDate() : new Date(a.checkIn as string);
                 const bCheckIn = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
                 return aCheckIn.getTime() - bCheckIn.getTime();
-            })[0]; // Get the earliest upcoming or current booking
+            })[0];
 
         if (relevantBooking) {
             const checkIn = startOfDay(relevantBooking.checkIn instanceof Timestamp ? relevantBooking.checkIn.toDate() : new Date(relevantBooking.checkIn as string));
@@ -82,16 +84,14 @@ export function DashboardPage() {
             
             let status: Room['status'];
             
-            // isWithinInterval checks if startOfSelectedDay is between checkIn and checkOut (inclusive)
             if (isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut })) {
                 status = 'Occupied';
-            } else if (startOfSelectedDay < checkIn) {
+            } else if (isAfter(checkIn, startOfSelectedDay)) {
                 status = 'Booked';
             } else {
                 status = 'Available'; 
             }
             
-            // If the booking is in the past and we are here, it means the room is now available
             if (status === 'Available') {
                  return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
             }
@@ -106,20 +106,25 @@ export function DashboardPage() {
             };
         }
         
-        // No relevant (current or future) bookings found for this room.
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
     
     const today = startOfDay(new Date());
     const futureBookings = (bookings || []).filter(b => {
-        const checkInDate = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
-        return checkInDate > today;
+        const checkInDate = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
+        return isAfter(checkInDate, today);
     });
-
+    
     const futureBookingsWithPayments = futureBookings.map(booking => {
-        const payment = (payments || []).find(p => p.bookingId === booking.id);
+        const bookingCheckInDate = (booking.checkIn instanceof Timestamp ? booking.checkIn.toDate() : new Date(booking.checkIn as string)).toISOString().split('T')[0];
+        
+        const payment = (payments || []).find(p => {
+             const paymentDate = (p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date as string)).toISOString().split('T')[0];
+             return p.roomNumber.toString() === booking.roomNumber.toString() && paymentDate === bookingCheckInDate && p.bookingId === booking.id;
+        });
         return { ...booking, payment };
     });
+
 
     return { bookingsForDay, paymentsForDay, updatedRooms, futureBookingsWithPayments };
   }, [selectedDate, bookings, payments, rooms]);

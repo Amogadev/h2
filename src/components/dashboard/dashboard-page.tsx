@@ -13,6 +13,7 @@ import RoomSection from '@/components/dashboard/room-section';
 import PaymentsSection from '@/components/dashboard/payments-section';
 import { collection, query, onSnapshot, getFirestore, collectionGroup, Timestamp } from 'firebase/firestore';
 import CalendarSection from './calendar-section';
+import { FutureBookingsDialog } from './future-bookings-dialog';
 
 export function DashboardPage() {
   const { user, isUserLoading: loading } = useUser();
@@ -108,8 +109,19 @@ export function DashboardPage() {
         // No relevant (current or future) bookings found for this room.
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
+    
+    const today = startOfDay(new Date());
+    const futureBookings = (bookings || []).filter(b => {
+        const checkInDate = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
+        return checkInDate > today;
+    });
 
-    return { bookingsForDay, paymentsForDay, updatedRooms };
+    const futureBookingsWithPayments = futureBookings.map(booking => {
+        const payment = (payments || []).find(p => p.bookingId === booking.id);
+        return { ...booking, payment };
+    });
+
+    return { bookingsForDay, paymentsForDay, updatedRooms, futureBookingsWithPayments };
   }, [selectedDate, bookings, payments, rooms]);
 
 
@@ -159,7 +171,9 @@ export function DashboardPage() {
               />
           </div>
         </div>
-        <SummaryCards rooms={filteredData.updatedRooms} />
+        <SummaryCards rooms={filteredData.updatedRooms}>
+             <FutureBookingsDialog bookings={filteredData.futureBookingsWithPayments} />
+        </SummaryCards>
         
         <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo } from 'react';
@@ -5,12 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BedDouble, Bed, UserCheck, CalendarClock } from 'lucide-react';
 import type { Room } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { DialogTrigger } from '../ui/dialog';
 
 interface SummaryCardsProps {
   rooms: Room[];
+  children?: React.ReactNode;
 }
 
-const SummaryCards = ({ rooms }: SummaryCardsProps) => {
+const SummaryCards = ({ rooms, children }: SummaryCardsProps) => {
   const stats = useMemo(() => {
     const totalRooms = rooms.length;
     const occupiedRooms = rooms.filter(r => r.status === 'Occupied').length;
@@ -42,23 +45,37 @@ const SummaryCards = ({ rooms }: SummaryCardsProps) => {
       title: 'Rooms Booked (Future)',
       value: stats.bookedRooms,
       icon: <CalendarClock className="w-6 h-6 text-orange-500" />,
-      colorClassName: 'bg-orange-950/50 border-orange-800'
+      colorClassName: 'bg-orange-950/50 border-orange-800',
+      isClickable: true,
     },
   ];
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {cardData.map(card => (
-        <Card key={card.title} className={cn(card.colorClassName)}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-            {card.icon}
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{card.value}</div>
-          </CardContent>
-        </Card>
-      ))}
+      {cardData.map(card => {
+        const CardComponent = (
+            <Card key={card.title} className={cn(card.colorClassName, card.isClickable && "cursor-pointer hover:border-orange-600 transition-colors")}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                    <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                    {card.icon}
+                </CardHeader>
+                <CardContent>
+                    <div className="text-4xl font-bold">{card.value}</div>
+                </CardContent>
+            </Card>
+        );
+
+        if (card.isClickable && children) {
+            return (
+                <DialogTrigger asChild key={card.title}>
+                    {CardComponent}
+                </DialogTrigger>
+            );
+        }
+
+        return CardComponent;
+      })}
+       {children}
     </div>
   );
 };

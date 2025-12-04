@@ -120,7 +120,7 @@ export function DashboardPage() {
         
         const payment = (payments || []).find(p => {
              const paymentDate = (p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date as string)).toISOString().split('T')[0];
-             return p.roomNumber.toString() === booking.roomNumber.toString() && paymentDate === bookingCheckInDate && p.bookingId === booking.id;
+             return p.roomNumber.toString() === booking.roomNumber.toString() && paymentDate === bookingCheckInDate;
         });
         return { ...booking, payment };
     });
@@ -196,3 +196,5 @@ export function DashboardPage() {
     </div>
   );
 }
+
+    

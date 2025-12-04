@@ -19,23 +19,49 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
-import { Booking } from '@/lib/types';
-import { addDoc, collection, doc, updateDoc, Timestamp, writeBatch } from 'firebase/firestore';
+import { Booking, Payment } from '@/lib/types';
+import { Timestamp, writeBatch, doc, collection } from 'firebase/firestore';
+import { differenceInCalendarDays } from 'date-fns';
+
+const NIGHTLY_RATE = 800;
 
 const paymentSchema = z.object({
-  paymentAmount: z.coerce.number().min(1, { message: 'Payment amount is required' }),
+  paymentAmount: z.coerce.number().min(0.01, { message: 'Payment amount is required' }),
   paymentMode: z.enum(['UPI', 'Cash', 'GPay', 'PhonePe', 'Net Banking', 'Card']),
 });
 
 type PaymentFormValues = z.infer<typeof paymentSchema>;
 
-export function CompletePaymentDialog({ booking }: { booking: Booking }) {
+interface CompletePaymentDialogProps {
+    booking: Booking;
+    advancePayment?: Payment;
+}
+
+export function CompletePaymentDialog({ booking, advancePayment }: CompletePaymentDialogProps) {
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
   const firestore = useFirestore();
+
+  const checkInDate = booking.checkIn instanceof Timestamp ? booking.checkIn.toDate() : new Date(booking.checkIn);
+  const checkOutDate = booking.checkOut instanceof Timestamp ? booking.checkOut.toDate() : new Date(booking.checkOut);
+  
+  const numberOfNights = differenceInCalendarDays(checkOutDate, checkInDate);
+  const totalCost = numberOfNights * NIGHTLY_RATE;
+  const amountPaid = advancePayment?.amount || 0;
+  const balanceDue = totalCost - amountPaid;
+
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
+    defaultValues: {
+      paymentAmount: balanceDue > 0 ? balanceDue : 0,
+      paymentMode: 'Cash'
+    },
   });
+  
+  React.useEffect(() => {
+    form.setValue('paymentAmount', balanceDue > 0 ? balanceDue : 0);
+  }, [balanceDue, form]);
+
 
   const onSubmit = async (data: PaymentFormValues) => {
     if (!firestore) return;
@@ -81,14 +107,30 @@ export function CompletePaymentDialog({ booking }: { booking: Booking }) {
       <DialogTrigger asChild>
         <Button variant="default">Complete Payment</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Complete Payment for Room {booking.roomNumber}</DialogTitle>
           <DialogDescription>
             Record the final payment for {booking.guestName}.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+
+        <div className="py-2 space-y-2 text-sm">
+            <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Cost ({numberOfNights} nights):</span>
+                <span className="font-medium">${totalCost.toLocaleString()}</span>
+            </div>
+             <div className="flex justify-between">
+                <span className="text-muted-foreground">Advance Paid:</span>
+                <span className="font-medium">${amountPaid.toLocaleString()}</span>
+            </div>
+             <div className="flex justify-between text-base font-semibold border-t pt-2 mt-2">
+                <span>Balance Due:</span>
+                <span>${balanceDue.toLocaleString()}</span>
+            </div>
+        </div>
+
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
                 <Label htmlFor="paymentAmount">Amount</Label>

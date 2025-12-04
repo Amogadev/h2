@@ -12,18 +12,27 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Booking } from '@/lib/types';
+import { Booking, Payment } from '@/lib/types';
 import { Calendar, User, Users } from 'lucide-react';
 import { format } from 'date-fns';
-import { Timestamp, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
-import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { Timestamp, doc, writeBatch } from 'firebase/firestore';
+import { useFirestore, errorEmitter, FirestorePermissionError, useCollection, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { CompletePaymentDialog } from './complete-payment-dialog';
+import { collection, query, where } from 'firebase/firestore';
 
 export function ViewBookingDialog({ booking, children }: { booking: Booking; children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
+
+  const paymentsQuery = useMemoFirebase(() => 
+    firestore && booking ? query(collection(firestore, `rooms/${booking.roomId}/payments`), where("bookingId", "==", booking.id)) : null
+  , [firestore, booking]);
+  
+  const { data: payments } = useCollection<Payment>(paymentsQuery);
+  
+  const advancePayment = payments?.find(p => areDatesSame(p.date, booking.checkIn));
 
   const formatDate = (date: string | Timestamp | undefined) => {
     if (!date) return 'N/A';
@@ -78,6 +87,12 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
       });
   };
 
+  const areDatesSame = (date1: string | Timestamp, date2: string | Timestamp) => {
+    const d1 = date1 instanceof Timestamp ? date1.toDate() : new Date(date1);
+    const d2 = date2 instanceof Timestamp ? date2.toDate() : new Date(date2);
+    return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0];
+  }
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -122,7 +137,7 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
         <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2">
             <div className='flex gap-2'>
                  {booking.paymentStatus === 'Advance Paid' && (
-                    <CompletePaymentDialog booking={booking} />
+                    <CompletePaymentDialog booking={booking} advancePayment={advancePayment} />
                  )}
                 <Button onClick={handleCheckOut} variant={booking.paymentStatus === 'Advance Paid' ? 'secondary' : 'default'}>Check Out</Button>
             </div>

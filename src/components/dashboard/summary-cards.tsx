@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BedDouble, Bed, UserCheck } from 'lucide-react';
+import { BedDouble, Bed, UserCheck, CalendarClock } from 'lucide-react';
 import type { Room } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -14,8 +14,9 @@ const SummaryCards = ({ rooms }: SummaryCardsProps) => {
   const stats = useMemo(() => {
     const totalRooms = rooms.length;
     const occupiedRooms = rooms.filter(r => r.status === 'Occupied').length;
-    const availableRooms = totalRooms - occupiedRooms;
-    return { totalRooms, availableRooms, occupiedRooms };
+    const bookedRooms = rooms.filter(r => r.status === 'Booked').length;
+    const availableRooms = totalRooms - occupiedRooms - bookedRooms;
+    return { totalRooms, availableRooms, occupiedRooms, bookedRooms };
   }, [rooms]);
 
   const cardData = [
@@ -37,10 +38,16 @@ const SummaryCards = ({ rooms }: SummaryCardsProps) => {
       icon: <UserCheck className="w-6 h-6 text-red-600" />,
       colorClassName: 'bg-red-950/50 border-red-800'
     },
+     {
+      title: 'Rooms Booked (Future)',
+      value: stats.bookedRooms,
+      icon: <CalendarClock className="w-6 h-6 text-orange-500" />,
+      colorClassName: 'bg-orange-950/50 border-orange-800'
+    },
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {cardData.map(card => (
         <Card key={card.title} className={cn(card.colorClassName)}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">

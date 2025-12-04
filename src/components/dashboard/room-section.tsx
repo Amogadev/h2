@@ -5,7 +5,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DoorClosed, DoorOpen, User } from 'lucide-react';
+import { DoorClosed, DoorOpen, User, CalendarClock } from 'lucide-react';
 import type { Room, Booking } from '@/lib/types';
 import { BookingDialog } from './booking-dialog';
 import { format } from 'date-fns';
@@ -17,8 +17,9 @@ interface RoomSectionProps {
   rooms: (Room & { currentBooking?: Booking })[];
 }
 
-const RoomCard = ({ room, currentBooking }: { room: Room; currentBooking?: Booking }) => {
+const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking }}) => {
   const isAvailable = room.status === 'Available';
+  const isBooked = room.status === 'Booked';
 
   const formatDate = (date: string | Timestamp | undefined) => {
     if (!date) return 'No booking info';
@@ -28,16 +29,35 @@ const RoomCard = ({ room, currentBooking }: { room: Room; currentBooking?: Booki
     return format(new Date(date as string), 'MMM d');
   }
 
+  const getStatusIcon = () => {
+    switch(room.status) {
+      case 'Available':
+        return <DoorOpen className="w-4 h-4 mr-1" />;
+      case 'Occupied':
+        return <DoorClosed className="w-4 h-4 mr-1" />;
+      case 'Booked':
+        return <CalendarClock className="w-4 h-4 mr-1" />;
+      default:
+        return <DoorOpen className="w-4 h-4 mr-1" />;
+    }
+  }
+
   return (
     <Card className={cn("flex flex-col", {
       'bg-blue-900/50 border-blue-700': isAvailable,
-      'bg-green-900/50 border-green-700': !isAvailable,
+      'bg-green-900/50 border-green-700': room.status === 'Occupied',
+      'bg-orange-900/50 border-orange-700': isBooked,
     })}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
           <CardTitle className="text-lg">Room {room.roomNumber}</CardTitle>
-          <Badge variant={isAvailable ? 'secondary' : 'default'} className="mt-1">
-            {isAvailable ? <DoorOpen className="w-4 h-4 mr-1" /> : <DoorClosed className="w-4 h-4 mr-1" />}
+          <Badge 
+             variant={isAvailable ? 'secondary' : 'default'} 
+             className={cn({
+                'bg-orange-500 text-white': isBooked
+             })}
+          >
+            {getStatusIcon()}
             {room.status}
           </Badge>
         </div>
@@ -64,8 +84,8 @@ const RoomCard = ({ room, currentBooking }: { room: Room; currentBooking?: Booki
             <BookingDialog room={room}>
               <Button className="w-full">Book Now</Button>
             </BookingDialog>
-          ) : currentBooking ? (
-             <ViewBookingDialog booking={currentBooking}>
+          ) : room.currentBooking ? (
+             <ViewBookingDialog booking={room.currentBooking}>
                 <Button variant="outline" className="w-full">View Booking</Button>
              </ViewBookingDialog>
           ) : (
@@ -88,7 +108,7 @@ const RoomSection = ({ rooms }: RoomSectionProps) => {
       <CardContent>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
           {rooms.map(room => (
-            <RoomCard key={room.id} room={room} currentBooking={room.currentBooking} />
+            <RoomCard key={room.id} room={room} />
           ))}
         </div>
       </CardContent>

@@ -3,7 +3,7 @@ import type { Timestamp } from "firebase/firestore";
 export interface Room {
   id: string;
   roomNumber: string;
-  status: 'Available' | 'Occupied' | 'Maintenance';
+  status: 'Available' | 'Occupied' | 'Booked' | 'Maintenance';
   guestName?: string;
   checkIn?: string | Timestamp;
   checkOut?:string | Timestamp;

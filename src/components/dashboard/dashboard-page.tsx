@@ -45,8 +45,9 @@ export function DashboardPage() {
     const dateStr = formatISO(selectedDate, { representation: 'date' });
     
     const bookingsForDay = (bookings || []).filter(b => {
-        const bookingDate = b.date instanceof Timestamp ? b.date.toDate() : new Date(b.date as string);
-        return formatISO(bookingDate, { representation: 'date' }) === dateStr;
+        const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
+        const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
+        return isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut });
     });
 
     const paymentsForDay = (payments || []).filter(p => {
@@ -66,21 +67,16 @@ export function DashboardPage() {
 
 
     const updatedRooms = uniqueRooms.map(room => {
-        // Find all bookings for this room that haven't ended yet
-        const allRelevantBookings = (bookings || [])
-            .filter(b => {
-                if (b.roomNumber.toString() !== room.roomNumber.toString()) return false;
-                const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
-                return !isBefore(checkOut, startOfSelectedDay);
-            })
+        const allBookingsForRoom = (bookings || [])
+            .filter(b => b.roomNumber.toString() === room.roomNumber.toString())
             .sort((a, b) => {
                 const aCheckIn = a.checkIn instanceof Timestamp ? a.checkIn.toDate() : new Date(a.checkIn as string);
                 const bCheckIn = b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string);
                 return aCheckIn.getTime() - bCheckIn.getTime();
             });
 
-        // Find the booking that is currently active on the selected date
-        const activeBooking = allRelevantBookings.find(b => {
+        // Find if there is an active booking for the selected date
+        const activeBooking = allBookingsForRoom.find(b => {
             const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
             const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
             return isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut });
@@ -97,8 +93,8 @@ export function DashboardPage() {
             };
         }
 
-        // If no active booking, find the next future booking
-        const futureBooking = allRelevantBookings.find(b => {
+        // If no active booking, check for the next future booking
+        const futureBooking = allBookingsForRoom.find(b => {
             const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
             return isAfter(checkIn, startOfSelectedDay);
         });
@@ -107,10 +103,10 @@ export function DashboardPage() {
             return {
                 ...room,
                 status: 'Booked' as const, // The room is Booked for the future, but available now
-                guestName: futureBooking.guestName, // show future guest
-                checkIn: futureBooking.checkIn, // show future dates
+                guestName: futureBooking.guestName,
+                checkIn: futureBooking.checkIn,
                 checkOut: futureBooking.checkOut,
-                futureBooking: futureBooking // Pass future booking info
+                futureBooking: futureBooking
             };
         }
         
@@ -210,3 +206,4 @@ export function DashboardPage() {
     
 
     
+

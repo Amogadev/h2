@@ -10,16 +10,16 @@ import { DialogTrigger } from '../ui/dialog';
 
 interface SummaryCardsProps {
   rooms: Room[];
+  futureBookingsCount: number;
 }
 
-const SummaryCards = ({ rooms }: SummaryCardsProps) => {
+const SummaryCards = ({ rooms, futureBookingsCount }: SummaryCardsProps) => {
   const stats = useMemo(() => {
     const totalRooms = rooms.length;
     const occupiedRooms = rooms.filter(r => r.status === 'Occupied').length;
-    const bookedRooms = rooms.filter(r => r.status === 'Booked').length;
-    const availableRooms = totalRooms - occupiedRooms - bookedRooms;
-    return { totalRooms, availableRooms, occupiedRooms, bookedRooms };
-  }, [rooms]);
+    const availableRooms = rooms.filter(r => r.status === 'Available').length;
+    return { totalRooms, availableRooms, occupiedRooms, bookedRooms: futureBookingsCount };
+  }, [rooms, futureBookingsCount]);
 
   const cardData = [
     {

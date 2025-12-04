@@ -20,7 +20,7 @@ interface RoomSectionProps {
 const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBooking?: Booking }}) => {
   const isAvailable = room.status === 'Available';
   const isOccupied = room.status === 'Occupied';
-  const isBooked = room.status === 'Booked';
+  const hasFutureBooking = !!room.futureBooking;
 
   const formatDate = (date: string | Timestamp | undefined) => {
     if (!date) return 'No booking info';
@@ -30,8 +30,8 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBoo
     return format(new Date(date as string), 'MMM d');
   }
 
-  const getStatusIcon = () => {
-    switch(room.status) {
+  const getStatusIcon = (status: Room['status'] | 'Booked') => {
+    switch(status) {
       case 'Available':
         return <DoorOpen className="w-4 h-4 mr-1" />;
       case 'Occupied':
@@ -45,9 +45,10 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBoo
 
   return (
     <Card className={cn("flex flex-col", {
-      'bg-card': isAvailable,
+      'bg-card': isAvailable && !hasFutureBooking,
       'bg-green-900/50 border-green-700': isOccupied,
-      'bg-orange-900/50 border-orange-700': isBooked,
+      // For available rooms with a future booking, we don't apply special background.
+      // The 'Booked' badge will provide the visual cue.
     })}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
@@ -56,25 +57,39 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBoo
             <Badge 
                variant={isOccupied ? 'default' : 'secondary'} 
                className={cn({
-                 'bg-orange-600 hover:bg-orange-700': isBooked,
                  'bg-green-600 hover:bg-green-700 text-white': isOccupied,
+                 'bg-secondary hover:bg-secondary/80': isAvailable
                })}
             >
-              {getStatusIcon()}
+              {getStatusIcon(room.status)}
               {room.status}
             </Badge>
+            {isAvailable && hasFutureBooking && (
+                <Badge
+                    variant="outline"
+                    className="border-orange-500 text-orange-500"
+                >
+                    {getStatusIcon('Booked')}
+                    Booked
+                </Badge>
+            )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col flex-grow">
-        {(isOccupied || isBooked) && room.guestName ? (
+        {(isOccupied || (isAvailable && hasFutureBooking)) ? (
             <div className="space-y-2 text-sm">
                 <div className="flex items-center">
                 <User className="w-4 h-4 mr-2 text-muted-foreground" />
-                <span>{room.guestName}</span>
+                <span>
+                    {isOccupied ? room.currentBooking?.guestName : room.futureBooking?.guestName}
+                </span>
                 </div>
                 <p className='text-xs text-muted-foreground'>
-                {`Check-in: ${formatDate(room.checkIn)} | Check-out: ${formatDate(room.checkOut)}`}
+                    {isOccupied ? 
+                        `Check-in: ${formatDate(room.checkIn)} | Check-out: ${formatDate(room.checkOut)}` :
+                        `Next: ${formatDate(room.futureBooking?.checkIn)} - ${formatDate(room.futureBooking?.checkOut)}`
+                    }
                 </p>
             </div>
         ) : (
@@ -88,8 +103,6 @@ const RoomCard = ({ room }: { room: Room & { currentBooking?: Booking, futureBoo
              <ViewBookingDialog booking={room.currentBooking}>
                 <Button variant="outline" className="w-full">View Booking</Button>
              </ViewBookingDialog>
-          ) : isBooked ? (
-             <Button className="w-full" disabled>Book Now</Button>
           ) : (
             <BookingDialog room={room}>
               <Button className="w-full">Book Now</Button>
@@ -107,7 +120,7 @@ const RoomSection = ({ rooms }: RoomSectionProps) => {
     <Card className="h-full">
       <CardHeader>
         <CardTitle>Room Status</CardTitle>
-        <CardDescription>View and manage room bookings.</CardDescription>
+        <CardDescription>View and manage room bookings for the selected date.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
@@ -121,5 +134,3 @@ const RoomSection = ({ rooms }: RoomSectionProps) => {
 };
 
 export default RoomSection;
-
-    

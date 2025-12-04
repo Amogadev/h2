@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Room, Booking, Payment } from '@/lib/types';
-import { formatISO, startOfDay, endOfDay, isWithinInterval, isAfter, isBefore } from 'date-fns';
+import { formatISO, startOfDay, endOfDay, isWithinInterval, isAfter } from 'date-fns';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +51,7 @@ export function DashboardPage() {
     });
 
     const paymentsForDay = (payments || []).filter(p => {
+        if (!p.date) return false;
         const paymentDate = p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date as string);
         return formatISO(paymentDate, { representation: 'date' }) === dateStr;
     });
@@ -100,13 +101,14 @@ export function DashboardPage() {
         });
 
         if (futureBooking) {
+             // The room is available now, but booked for the future.
             return {
                 ...room,
-                status: 'Booked' as const, // The room is Booked for the future, but available now
+                status: 'Available' as const, // It is available for booking on the selectedDate
                 guestName: futureBooking.guestName,
                 checkIn: futureBooking.checkIn,
                 checkOut: futureBooking.checkOut,
-                futureBooking: futureBooking
+                futureBooking: futureBooking // Keep track of the future booking to show info
             };
         }
         
@@ -183,7 +185,7 @@ export function DashboardPage() {
           </div>
         </div>
         <FutureBookingsDialog bookings={filteredData.futureBookingsWithPayments}>
-          <SummaryCards rooms={filteredData.updatedRooms} />
+          <SummaryCards rooms={filteredData.updatedRooms} futureBookingsCount={filteredData.futureBookingsWithPayments.length} />
         </FutureBookingsDialog>
         
         <div className="grid gap-8 lg:grid-cols-3">

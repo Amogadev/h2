@@ -15,9 +15,10 @@ import { Button } from '@/components/ui/button';
 import { Booking } from '@/lib/types';
 import { Calendar, User, Users } from 'lucide-react';
 import { format } from 'date-fns';
-import { Timestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { Timestamp, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { CompletePaymentDialog } from './complete-payment-dialog';
 
 export function ViewBookingDialog({ booking, children }: { booking: Booking; children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
@@ -33,31 +34,30 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
   const handleCheckOut = () => {
     if (!firestore || !booking) return;
 
+    if (booking.paymentStatus === 'Advance Paid') {
+        toast({
+            title: "Payment Pending",
+            description: "Please complete the payment before checking out.",
+            variant: "destructive",
+        });
+        return;
+    }
+
     const roomRef = doc(firestore, 'rooms', booking.roomId);
     const bookingRef = doc(firestore, 'rooms', booking.roomId, 'bookings', booking.id);
+    
+    const batch = writeBatch(firestore);
+
     const roomUpdateData = {
       status: 'Available',
       guestName: null,
       checkIn: null,
       checkOut: null,
     };
-
-    // Update room status to available
-    updateDoc(roomRef, roomUpdateData)
-      .then(() => {
-        // After successfully updating the room, delete the booking document
-        return deleteDoc(bookingRef).catch((error) => {
-           errorEmitter.emit(
-            'permission-error',
-            new FirestorePermissionError({
-              path: bookingRef.path,
-              operation: 'delete',
-            })
-          );
-          // Re-throw to prevent success toast if booking deletion fails
-          throw error;
-        });
-      })
+    batch.update(roomRef, roomUpdateData)
+    batch.delete(bookingRef);
+    
+    batch.commit()
       .then(() => {
         toast({
           title: 'Check-out Successful',
@@ -66,19 +66,14 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
         setOpen(false);
       })
       .catch((error) => {
-        // This will catch the re-thrown error from booking deletion or the initial room update error.
-        if (error.name !== 'FirebaseError') {
-           errorEmitter.emit(
+        errorEmitter.emit(
             'permission-error',
             new FirestorePermissionError({
               path: roomRef.path,
-              operation: 'update',
+              operation: 'write',
               requestResourceData: roomUpdateData,
             })
           );
-        }
-        // The error is already emitted, so we don't need a toast here.
-        // The FirebaseErrorListener will handle displaying it.
         console.error('An error occurred during check-out:', error);
       });
   };
@@ -124,8 +119,13 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
             </div>
           </div>
         </div>
-        <DialogFooter className="sm:justify-between gap-2">
-            <Button onClick={handleCheckOut}>Check Out</Button>
+        <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2">
+            <div className='flex gap-2'>
+                 {booking.paymentStatus === 'Advance Paid' && (
+                    <CompletePaymentDialog booking={booking} />
+                 )}
+                <Button onClick={handleCheckOut} variant={booking.paymentStatus === 'Advance Paid' ? 'secondary' : 'default'}>Check Out</Button>
+            </div>
             <Button onClick={() => setOpen(false)} variant="outline">Close</Button>
         </DialogFooter>
       </DialogContent>

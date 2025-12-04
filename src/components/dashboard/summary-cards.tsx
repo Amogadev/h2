@@ -41,7 +41,7 @@ const SummaryCards = ({ rooms }: SummaryCardsProps) => {
       colorClassName: 'bg-red-950/50 border-red-800'
     },
      {
-      title: 'Rooms Booked (Future)',
+      title: 'Rooms Booked',
       value: stats.bookedRooms,
       icon: <CalendarClock className="w-6 h-6 text-orange-500" />,
       colorClassName: 'bg-orange-950/50 border-orange-800',

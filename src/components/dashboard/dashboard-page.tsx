@@ -67,13 +67,8 @@ export function DashboardPage() {
             const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
             const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
             
-            // Is the selected date within this booking's range?
-            const isOccupiedNow = startOfSelectedDate >= checkIn && startOfSelectedDate <= checkOut;
-            
-            // Is there a booking in the future for this room relative to selected date?
-            const isBookedForFuture = startOfSelectedDate < checkIn;
-
-            return isOccupiedNow || isBookedForFuture;
+            // The room is relevant for this booking if the selected date is part of any booking range
+            return startOfSelectedDate < checkOut;
         });
 
         if (relevantBooking) {
@@ -83,8 +78,14 @@ export function DashboardPage() {
             let status: Room['status'];
             if (startOfSelectedDate >= checkIn && startOfSelectedDate <= checkOut) {
                 status = 'Occupied';
-            } else {
+            } else if (startOfSelectedDate < checkIn) {
                 status = 'Booked';
+            } else {
+                status = 'Available'; 
+            }
+
+            if (status === 'Available') {
+                 return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
             }
 
             return {

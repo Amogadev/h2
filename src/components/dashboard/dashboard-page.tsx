@@ -91,7 +91,7 @@ export function DashboardPage() {
             <Skeleton className="h-8 w-8 rounded-full" />
         </header>
         <main className="flex-1 p-4 space-y-6 md:p-8">
-            <Skeleton className="h-10 w-64 mb-4" />
+            
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Skeleton className="h-28" />
                 <Skeleton className="h-28" />

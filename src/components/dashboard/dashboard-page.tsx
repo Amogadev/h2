@@ -100,14 +100,11 @@ export function DashboardPage() {
             return isAfter(checkIn, startOfSelectedDay);
         });
 
+        // If there's a future booking, the room is currently available but will be booked.
         if (futureBooking) {
-             // The room is available now, but booked for the future.
             return {
                 ...room,
                 status: 'Available' as const, // It is available for booking on the selectedDate
-                guestName: futureBooking.guestName,
-                checkIn: futureBooking.checkIn,
-                checkOut: futureBooking.checkOut,
                 futureBooking: futureBooking // Keep track of the future booking to show info
             };
         }
@@ -123,12 +120,9 @@ export function DashboardPage() {
     });
     
     const futureBookingsWithPayments = futureBookings.map(booking => {
-        const bookingCheckInDate = (booking.checkIn instanceof Timestamp ? booking.checkIn.toDate() : new Date(booking.checkIn as string)).toISOString().split('T')[0];
-        
         const payment = (payments || []).find(p => {
-             if (!p.roomNumber || !p.date) return false;
-             const paymentDate = (p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date as string)).toISOString().split('T')[0];
-             return p.roomNumber.toString() === booking.roomNumber.toString() && paymentDate === bookingCheckInDate;
+             if (!p.bookingId) return false;
+             return p.bookingId === booking.id;
         });
         return { ...booking, payment };
     });
@@ -208,4 +202,3 @@ export function DashboardPage() {
     
 
     
-

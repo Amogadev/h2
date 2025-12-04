@@ -15,23 +15,24 @@ import { Button } from '@/components/ui/button';
 import { Booking, Payment } from '@/lib/types';
 import { Calendar, User, Users } from 'lucide-react';
 import { format } from 'date-fns';
-import { Timestamp, doc, writeBatch } from 'firebase/firestore';
+import { Timestamp, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { useFirestore, errorEmitter, FirestorePermissionError, useCollection, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { CompletePaymentDialog } from './complete-payment-dialog';
 import { collection, query, where } from 'firebase/firestore';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
+const areDatesSame = (date1: string | Timestamp, date2: string | Timestamp) => {
+    const d1 = date1 instanceof Timestamp ? date1.toDate() : new Date(date1);
+    const d2 = date2 instanceof Timestamp ? date2.toDate() : new Date(date2);
+    return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0];
+}
 
 export function ViewBookingDialog({ booking, children }: { booking: Booking; children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
-
-  const areDatesSame = (date1: string | Timestamp, date2: string | Timestamp) => {
-    const d1 = date1 instanceof Timestamp ? date1.toDate() : new Date(date1);
-    const d2 = date2 instanceof Timestamp ? date2.toDate() : new Date(date2);
-    return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0];
-  }
-
+  
   const paymentsQuery = useMemoFirebase(() => 
     firestore && booking ? query(collection(firestore, `rooms/${booking.roomId}/payments`), where("bookingId", "==", booking.id)) : null
   , [firestore, booking]);
@@ -46,7 +47,7 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
     return format(d, 'PPP');
   };
 
-  const handleCheckOut = () => {
+  const handleCheckOut = async () => {
     if (!firestore || !booking) return;
 
     if (booking.paymentStatus === 'Advance Paid') {
@@ -57,20 +58,20 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
         });
         return;
     }
-
-    const roomRef = doc(firestore, 'rooms', booking.roomId);
-    const bookingRef = doc(firestore, 'rooms', booking.roomId, 'bookings', booking.id);
     
     const batch = writeBatch(firestore);
 
-    const roomUpdateData = {
-      status: 'Available',
-      guestName: null,
-      checkIn: null,
-      checkOut: null,
-    };
-    batch.update(roomRef, roomUpdateData)
+    // Delete the booking document
+    const bookingRef = doc(firestore, 'rooms', booking.roomId, 'bookings', booking.id);
     batch.delete(bookingRef);
+
+    // Delete all associated payments
+    if (payments && payments.length > 0) {
+      payments.forEach(p => {
+        const paymentRef = doc(firestore, `rooms/${booking.roomId}/payments`, p.id);
+        batch.delete(paymentRef);
+      });
+    }
     
     batch.commit()
       .then(() => {
@@ -84,14 +85,37 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
         errorEmitter.emit(
             'permission-error',
             new FirestorePermissionError({
-              path: roomRef.path,
+              path: bookingRef.path,
               operation: 'write',
-              requestResourceData: roomUpdateData,
+              requestResourceData: { status: 'Checked Out' },
             })
           );
         console.error('An error occurred during check-out:', error);
       });
   };
+
+  const CheckOutButton = () => {
+    const isPaymentPending = booking.paymentStatus === 'Advance Paid';
+
+    if (isPaymentPending) {
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span tabIndex={0}>
+                            <Button onClick={handleCheckOut} disabled>Check Out</Button>
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Complete payment before checking out.</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    }
+    return <Button onClick={handleCheckOut}>Check Out</Button>;
+  }
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -138,7 +162,7 @@ export function ViewBookingDialog({ booking, children }: { booking: Booking; chi
                  {booking.paymentStatus === 'Advance Paid' && (
                     <CompletePaymentDialog booking={booking} advancePayment={advancePayment} />
                  )}
-                <Button onClick={handleCheckOut} variant={booking.paymentStatus === 'Advance Paid' ? 'secondary' : 'default'}>Check Out</Button>
+                <CheckOutButton />
             </div>
             <Button onClick={() => setOpen(false)} variant="outline">Close</Button>
         </DialogFooter>

@@ -2,24 +2,15 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Booking, Payment } from '@/lib/types';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { ScrollArea } from '../ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Calendar, User, DollarSign, CreditCard, Wallet, Landmark } from 'lucide-react';
-import { Separator } from '../ui/separator';
 
 interface FutureBookingsDialogProps {
   bookings: (Booking & { payment?: Payment })[];
-  children: React.ReactNode;
 }
 
 const paymentModeIcons: Record<string, React.ReactNode> = {
@@ -31,7 +22,7 @@ const paymentModeIcons: Record<string, React.ReactNode> = {
     'Card': <CreditCard className="w-4 h-4" />,
 };
 
-export function FutureBookingsDialog({ bookings, children }: FutureBookingsDialogProps) {
+export function FutureBookingsDialog({ bookings }: FutureBookingsDialogProps) {
   const formatDate = (date: string | Timestamp | undefined, formatString = 'MMM d, yyyy') => {
     if (!date) return 'N/A';
     const d = date instanceof Timestamp ? date.toDate() : new Date(date);
@@ -60,17 +51,8 @@ export function FutureBookingsDialog({ bookings, children }: FutureBookingsDialo
   }, [bookings]);
 
   return (
-    <Dialog>
-      {children}
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Upcoming Bookings</DialogTitle>
-          <DialogDescription>
-            Here is a list of all future bookings, grouped by date.
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="h-[60vh] pr-4">
-          <div className="space-y-6 py-4">
+        <ScrollArea className="h-64 pr-4">
+          <div className="space-y-6">
             {Object.keys(groupedBookings).length > 0 ? (
               Object.entries(groupedBookings).map(([date, bookingsOnDate]) => (
                 <div key={date} className="space-y-4">
@@ -112,7 +94,5 @@ export function FutureBookingsDialog({ bookings, children }: FutureBookingsDialo
             )}
           </div>
         </ScrollArea>
-      </DialogContent>
-    </Dialog>
   );
 }

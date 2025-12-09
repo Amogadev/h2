@@ -12,7 +12,6 @@ import RoomSection from '@/components/dashboard/room-section';
 import PaymentsSection from '@/components/dashboard/payments-section';
 import { collection, query, collectionGroup, Timestamp } from 'firebase/firestore';
 import CalendarSection from './calendar-section';
-import { FutureBookingsDialog } from './future-bookings-dialog';
 import { RoomDetailsDialog } from './room-details-dialog';
 
 export function DashboardPage() {
@@ -33,7 +32,6 @@ export function DashboardPage() {
   
   const dataLoading = roomsLoading || bookingsLoading || paymentsLoading;
   
-  const [futureBookingsCount, setFutureBookingsCount] = useState(0);
   const [futureBookingsWithPayments, setFutureBookingsWithPayments] = useState<(Booking & { payment?: Payment; })[]>([]);
 
 
@@ -61,7 +59,6 @@ export function DashboardPage() {
             return { ...booking, payment };
         });
 
-        setFutureBookingsCount(futureBookings.length);
         setFutureBookingsWithPayments(futureBookingsWithPaymentsData);
     }
   }, [bookings, payments]);
@@ -107,27 +104,29 @@ export function DashboardPage() {
             const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
             const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
             const isSelectedTodayOrLater = !isBefore(startOfSelectedDay, startOfDay(new Date()));
+            
+            const isSelectedDateInBooking = isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut });
 
-            return isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut }) || (isToday(checkIn) && isSelectedTodayOrLater);
+            return isSelectedDateInBooking || (isToday(checkIn) && isSelectedTodayOrLater);
         });
         
         if (activeBooking) {
-            const isActiveToday = isToday(startOfDay(activeBooking.checkIn instanceof Timestamp ? activeBooking.checkIn.toDate() : new Date(activeBooking.checkIn as string)));
-            const isSelectedDateInBooking = isWithinInterval(startOfSelectedDay, { 
-                start: startOfDay(activeBooking.checkIn instanceof Timestamp ? activeBooking.checkIn.toDate() : new Date(activeBooking.checkIn as string)), 
-                end: endOfDay(activeBooking.checkOut instanceof Timestamp ? activeBooking.checkOut.toDate() : new Date(activeBooking.checkOut as string))
-            });
-
-            if (isSelectedDateInBooking) {
-                return {
+            const checkInDate = startOfDay(activeBooking.checkIn instanceof Timestamp ? activeBooking.checkIn.toDate() : new Date(activeBooking.checkIn as string));
+            if (isAfter(checkInDate, startOfSelectedDay)) {
+                 return {
                     ...room,
-                    status: 'Occupied' as const,
-                    guestName: activeBooking.guestName,
-                    checkIn: activeBooking.checkIn,
-                    checkOut: activeBooking.checkOut,
-                    currentBooking: activeBooking,
+                    status: 'Available' as const, // Still available today
+                    futureBooking: activeBooking 
                 };
             }
+            return {
+                ...room,
+                status: 'Occupied' as const,
+                guestName: activeBooking.guestName,
+                checkIn: activeBooking.checkIn,
+                checkOut: activeBooking.checkOut,
+                currentBooking: activeBooking,
+            };
         }
         
         // If no active booking, check for the next future booking
@@ -200,12 +199,8 @@ export function DashboardPage() {
         
         <RoomDetailsDialog
           rooms={filteredData.updatedRooms}
-          futureBookingsCount={futureBookingsCount}
-        >
-          <FutureBookingsDialog bookings={futureBookingsWithPayments}>
-             <div />
-          </FutureBookingsDialog>
-        </RoomDetailsDialog>
+          futureBookings={futureBookingsWithPayments}
+        />
 
         <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">

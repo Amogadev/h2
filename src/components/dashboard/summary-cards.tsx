@@ -17,7 +17,7 @@ const SummaryCards = ({ rooms, futureBookingsCount }: SummaryCardsProps) => {
   const stats = useMemo(() => {
     const totalRooms = rooms.length;
     const occupiedRooms = rooms.filter(r => r.status === 'Occupied').length;
-    const availableRooms = rooms.filter(r => r.status === 'Available').length;
+    const availableRooms = totalRooms - occupiedRooms;
     return { totalRooms, availableRooms, occupiedRooms, bookedRooms: futureBookingsCount };
   }, [rooms, futureBookingsCount]);
 

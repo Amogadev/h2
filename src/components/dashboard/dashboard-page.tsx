@@ -3,17 +3,17 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Room, Booking, Payment } from '@/lib/types';
-import { formatISO, startOfDay, endOfDay, isWithinInterval, isAfter, isToday } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, isAfter, isToday, isBefore } from 'date-fns';
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
 import DashboardHeader from '@/components/dashboard/header';
-import SummaryCards from '@/components/dashboard/summary-cards';
 import RoomSection from '@/components/dashboard/room-section';
 import PaymentsSection from '@/components/dashboard/payments-section';
 import { collection, query, collectionGroup, Timestamp } from 'firebase/firestore';
 import CalendarSection from './calendar-section';
 import { FutureBookingsDialog } from './future-bookings-dialog';
+import RoomDetailsCard from './room-details-card';
 
 export function DashboardPage() {
   const { user, isUserLoading: loading } = useUser();
@@ -69,7 +69,6 @@ export function DashboardPage() {
 
   const filteredData = useMemo(() => {
     const startOfSelectedDay = startOfDay(selectedDate);
-    const dateStr = formatISO(selectedDate, { representation: 'date' });
     
     const bookingsForDay = (bookings || []).filter(b => {
         const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
@@ -80,7 +79,7 @@ export function DashboardPage() {
     const paymentsForDay = (payments || []).filter(p => {
         if (!p.date) return false;
         const paymentDate = p.date instanceof Timestamp ? p.date.toDate() : new Date(p.date as string);
-        return formatISO(paymentDate, { representation: 'date' }) === dateStr;
+        return paymentDate >= startOfSelectedDay && paymentDate <= endOfDay(selectedDate);
     });
 
     const uniqueRooms = (rooms || [])
@@ -109,7 +108,7 @@ export function DashboardPage() {
             const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
             return isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut });
         });
-
+        
         if (activeBooking) {
             return {
                 ...room,
@@ -127,16 +126,14 @@ export function DashboardPage() {
             return isAfter(checkIn, startOfSelectedDay);
         });
 
-        // If there's a future booking, the room is currently available but will be booked.
         if (futureBooking) {
             return {
                 ...room,
-                status: 'Available' as const, // It is available for booking on the selectedDate
-                futureBooking: futureBooking // Keep track of the future booking to show info
+                status: 'Available' as const,
+                futureBooking: futureBooking 
             };
         }
         
-        // If no active or future bookings, it's available
         return { ...room, status: 'Available' as const, guestName: undefined, checkIn: undefined, checkOut: undefined };
     });
     
@@ -191,7 +188,7 @@ export function DashboardPage() {
           </div>
         </div>
         <FutureBookingsDialog bookings={futureBookingsWithPayments}>
-          <SummaryCards rooms={filteredData.updatedRooms} futureBookingsCount={futureBookingsCount} />
+           <RoomDetailsCard rooms={filteredData.updatedRooms} futureBookingsCount={futureBookingsCount} />
         </FutureBookingsDialog>
         
         <div className="grid gap-8 lg:grid-cols-3">

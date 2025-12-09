@@ -13,7 +13,7 @@ import PaymentsSection from '@/components/dashboard/payments-section';
 import { collection, query, collectionGroup, Timestamp } from 'firebase/firestore';
 import CalendarSection from './calendar-section';
 import { FutureBookingsDialog } from './future-bookings-dialog';
-import RoomDetailsCard from './room-details-card';
+import { RoomDetailsDialog } from './room-details-dialog';
 
 export function DashboardPage() {
   const { user, isUserLoading: loading } = useUser();
@@ -106,20 +106,30 @@ export function DashboardPage() {
         const activeBooking = allBookingsForRoom.find(b => {
             const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
             const checkOut = endOfDay(b.checkOut instanceof Timestamp ? b.checkOut.toDate() : new Date(b.checkOut as string));
-            return isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut });
+            const isSelectedTodayOrLater = !isBefore(startOfSelectedDay, startOfDay(new Date()));
+
+            return isWithinInterval(startOfSelectedDay, { start: checkIn, end: checkOut }) || (isToday(checkIn) && isSelectedTodayOrLater);
         });
         
         if (activeBooking) {
-            return {
-                ...room,
-                status: 'Occupied' as const,
-                guestName: activeBooking.guestName,
-                checkIn: activeBooking.checkIn,
-                checkOut: activeBooking.checkOut,
-                currentBooking: activeBooking,
-            };
-        }
+            const isActiveToday = isToday(startOfDay(activeBooking.checkIn instanceof Timestamp ? activeBooking.checkIn.toDate() : new Date(activeBooking.checkIn as string)));
+            const isSelectedDateInBooking = isWithinInterval(startOfSelectedDay, { 
+                start: startOfDay(activeBooking.checkIn instanceof Timestamp ? activeBooking.checkIn.toDate() : new Date(activeBooking.checkIn as string)), 
+                end: endOfDay(activeBooking.checkOut instanceof Timestamp ? activeBooking.checkOut.toDate() : new Date(activeBooking.checkOut as string))
+            });
 
+            if (isSelectedDateInBooking) {
+                return {
+                    ...room,
+                    status: 'Occupied' as const,
+                    guestName: activeBooking.guestName,
+                    checkIn: activeBooking.checkIn,
+                    checkOut: activeBooking.checkOut,
+                    currentBooking: activeBooking,
+                };
+            }
+        }
+        
         // If no active booking, check for the next future booking
         const futureBooking = allBookingsForRoom.find(b => {
             const checkIn = startOfDay(b.checkIn instanceof Timestamp ? b.checkIn.toDate() : new Date(b.checkIn as string));
@@ -127,9 +137,9 @@ export function DashboardPage() {
         });
 
         if (futureBooking) {
-            return {
+             return {
                 ...room,
-                status: 'Available' as const,
+                status: 'Available' as const, // Still available today
                 futureBooking: futureBooking 
             };
         }
@@ -187,10 +197,16 @@ export function DashboardPage() {
               />
           </div>
         </div>
-        <FutureBookingsDialog bookings={futureBookingsWithPayments}>
-           <RoomDetailsCard rooms={filteredData.updatedRooms} futureBookingsCount={futureBookingsCount} />
-        </FutureBookingsDialog>
         
+        <RoomDetailsDialog
+          rooms={filteredData.updatedRooms}
+          futureBookingsCount={futureBookingsCount}
+        >
+          <FutureBookingsDialog bookings={futureBookingsWithPayments}>
+             <div />
+          </FutureBookingsDialog>
+        </RoomDetailsDialog>
+
         <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
                 <RoomSection rooms={filteredData.updatedRooms} />

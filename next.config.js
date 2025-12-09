@@ -1,12 +1,7 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   images: {
     remotePatterns: [
@@ -31,9 +26,11 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
-    // Note: allowedDevOrigins is not a standard Next.js option.
-    // This is retained from your request but may not have an effect.
+    allowedDevOrigins: [
+      'http://localhost:9000',
+      'http://localhost:6000',
+    ],
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
